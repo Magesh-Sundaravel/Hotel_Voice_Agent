@@ -7,7 +7,7 @@ from src.config import settings
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Italian Restaurant AI Receptionist (Hotel & Trattoria Voice Agent)"
+        description="Sina Hotels AI Voice Receptionist & Room CRM (Sina Bernini Bristol)"
     )
     parser.add_argument(
         "--serve",

@@ -1,8 +1,8 @@
-# Hotel & Restaurant Voice Agent (Italian-First AI Receptionist)
+# SINA HOTELS — AI Voice Receptionist & Room CRM
 
-An Italian-first AI voice receptionist built with **LangGraph**, **Groq**, and **Supabase (PostgreSQL)**, adhering to the architecture and principles defined in [AGENTS.md](file:///home/magesh/Magesh/Projects/Hotel_Voice_Agent/AGENTS.md).
+An Italian-first AI hotel voice receptionist and guest CRM built with **LangGraph**, **Groq**, **React + Vite**, and **PostgreSQL/Supabase** for **Sina Bernini Bristol (Roma)**.
 
-The agent handles restaurant phone calls: checks real-time table availability, creates and modifies reservations, answers FAQs using verified data, records guest dietary/allergy requirements, takes messages for management, and persists state in Supabase.
+The agent handles hotel phone calls: checks real-time room availability across 4 room categories (Superior, Deluxe, Junior Suite, Suite Panoramica), creates and modifies room bookings, tracks early departures, captures guest CRM preferences (allergies, special habits, VIP status), and presents a live React management dashboard.
 
 ---
 
@@ -98,7 +98,7 @@ DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].poole
 > **Password URL Encoding**: If your database password contains special characters like `@`, percent-encode it as `%40` (e.g. `Hotel@123` becomes `Hotel%40123`). The application also includes automatic URL password normalization.
 
 ### 2. (Optional) Seed Business Tables in Supabase
-Run [`supabase/schema.sql`](file:///home/magesh/Magesh/Projects/Hotel_Voice_Agent/supabase/schema.sql) in your **Supabase Dashboard → SQL Editor** to initialize the business tables and seed data for *Trattoria Bella Vista*.
+Run [`supabase/schema.sql`](file:///home/magesh/Magesh/Projects/Hotel_Voice_Agent/supabase/schema.sql) in your **Supabase Dashboard → SQL Editor** to initialize the master hotel rooms, room bookings, and guest CRM tables for *Sina Bernini Bristol*.
 
 ---
 

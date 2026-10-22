@@ -14,6 +14,11 @@ class NotificationType(str, Enum):
     CANCELLATION = "cancellation"
     OWNER_MESSAGE = "owner_message"
     ALLERGY_ALERT = "allergy_alert"
+    VIP_ALERT = "vip_alert"
+    ANNIVERSARY_ALERT = "anniversary_alert"
+    CONCIERGE_REQUEST = "concierge_request"
+    GUEST_FEEDBACK = "guest_feedback"
+    TRANSFER_REQUEST = "transfer_request"
 
 
 class CRMNotification(BaseModel):

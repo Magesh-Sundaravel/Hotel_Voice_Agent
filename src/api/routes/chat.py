@@ -20,7 +20,8 @@ class ChatRequest(BaseModel):
     message: str = Field(description="Caller input text in Italian")
     caller_phone: str | None = "+39 333 0000000"
     caller_name: str | None = None
-    restaurant_id: str = "default_trattoria"
+    hotel_id: str = "sina_bernini_bristol"
+    hotel_name: str = "Sina Bernini Bristol"
 
 
 class ChatResponse(BaseModel):
@@ -33,7 +34,7 @@ class ChatResponse(BaseModel):
     )
     reservation_code: str | None = Field(
         default=None,
-        description="Confirmed reservation reference code (e.g. 'BV-1234') if created during call.",
+        description="Confirmed reservation reference code (e.g. 'SINA-4020') if created during call.",
     )
 
 
@@ -46,7 +47,8 @@ async def chat_with_agent(req: ChatRequest, request: Request):
 
     try:
         agent = create_agent_graph(
-            restaurant_id=req.restaurant_id,
+            hotel_id=req.hotel_id,
+            hotel_name=req.hotel_name,
             checkpointer=checkpointer,
         )
     except Exception as e:
@@ -56,8 +58,8 @@ async def chat_with_agent(req: ChatRequest, request: Request):
 
     input_state: AgentState = {
         "messages": [HumanMessage(content=req.message)],
-        "restaurant_id": req.restaurant_id,
-        "restaurant_name": "Trattoria Bella Vista",
+        "hotel_id": req.hotel_id,
+        "hotel_name": req.hotel_name,
         "caller_phone": req.caller_phone,
         "caller_name": req.caller_name,
         "current_date": format_date_italian(date.today()),
@@ -79,14 +81,14 @@ async def chat_with_agent(req: ChatRequest, request: Request):
         if isinstance(m, ToolMessage):
             if m.name == "end_call":
                 call_ended = True
-            if m.name == "create_reservation" and m.content and "BV-" in m.content:
-                match = re.search(r"BV-\d{4}", m.content)
+            if m.name in ["create_hotel_room_booking", "create_reservation"] and m.content:
+                match = re.search(r"SINA-\d{4}", m.content)
                 if match:
                     reservation_code = match.group(0)
 
     return ChatResponse(
         session_id=req.session_id,
-        response=last_ai or "Come posso esserLe utile?",
+        response=last_ai or "Come posso esserLe utile da Sina Hotels?",
         history_length=len(updated_messages),
         call_ended=call_ended,
         reservation_code=reservation_code,

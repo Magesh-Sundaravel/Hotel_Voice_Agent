@@ -13,11 +13,12 @@ from src.repositories import get_booking_repository, get_notification_repository
 
 async def run_simulator():
     print("=" * 70)
-    print(" 📞  SIMULATORE VOCALE RICEZIONISTA AI - TRATTORIA BELLA VISTA")
+    print(" 🏨  SIMULATORE VOCALE RICEZIONISTA AI - SINA HOTELS")
+    print("     Sina Bernini Bristol — Piazza Barberini, Roma")
     print("=" * 70)
     print("Comandi speciali:")
     print("  /notifiche     - Visualizza le notifiche registrate nel CRM")
-    print("  /prenotazioni  - Elenca le prenotazioni confermate nel gestionale")
+    print("  /prenotazioni  - Elenca le prenotazioni camere nel gestionale")
     print("  /chiudi        - Riaggancia manualmente la telefonata")
     print("  /reset         - Termina la telefonata corrente e ne avvia una nuova")
     print("  /esci          - Chiude il simulatore")
@@ -43,7 +44,8 @@ async def run_simulator():
     async with get_checkpointer() as checkpointer:
         try:
             agent = create_agent_graph(
-                restaurant_id="default_trattoria",
+                hotel_id="sina_bernini_bristol",
+                hotel_name="Sina Bernini Bristol",
                 checkpointer=checkpointer,
             )
         except Exception as e:  # noqa: BLE001
@@ -61,8 +63,8 @@ async def run_simulator():
         initial_trigger = HumanMessage(content="Pronto? Buongiorno.")
         state: AgentState = {
             "messages": [initial_trigger],
-            "restaurant_id": "default_trattoria",
-            "restaurant_name": settings.DEFAULT_RESTAURANT_NAME,
+            "hotel_id": "sina_bernini_bristol",
+            "hotel_name": "Sina Bernini Bristol",
             "caller_phone": caller_phone,
             "caller_name": caller_name,
             "current_date": current_date,
@@ -119,8 +121,8 @@ async def run_simulator():
 
             if user_text.lower() == "/notifiche":
                 repo = get_notification_repository()
-                notifs = await repo.get_notifications("default_trattoria")
-                print("\n--- NOTIFICHE CRM DEL RISTORANTE ---")
+                notifs = await repo.get_notifications("sina_bernini_bristol")
+                print("\n--- NOTIFICHE CRM HOTEL SINA BERNINI BRISTOL ---")
                 if not notifs:
                     print("Nessuna notifica presente.")
                 for n in notifs:
@@ -135,7 +137,7 @@ async def run_simulator():
             if user_text.lower() == "/prenotazioni":
                 repo = get_booking_repository()
                 bookings = await repo.get_reservations_for_date(
-                    "default_trattoria", date.today(), status=None
+                    "sina_bernini_bristol", date.today(), status=None
                 )
                 print(
                     f"\n--- PRENOTAZIONI CONFERMATE OGGI ({date.today().strftime('%d/%m/%Y')}) ---"

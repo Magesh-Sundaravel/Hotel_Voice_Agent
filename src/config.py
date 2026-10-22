@@ -18,9 +18,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     SUPABASE_DB_URL: str = ""
 
-    # Restaurant defaults
-    DEFAULT_RESTAURANT_NAME: str = "Trattoria Bella Vista"
-    DEFAULT_RESTAURANT_PHONE: str = "+39 06 1234567"
+    # Hotel defaults (Sina Bernini Bristol, Roma)
+    DEFAULT_HOTEL_NAME: str = "Sina Bernini Bristol"
+    DEFAULT_HOTEL_PHONE: str = "+39 06 4883051"
+    DEFAULT_HOTEL_ADDRESS: str = "Piazza Barberini 23, Roma"
+    DEFAULT_RESTAURANT_NAME: str = "Sina Bernini Bristol"
+    DEFAULT_RESTAURANT_PHONE: str = "+39 06 4883051"
     DEFAULT_TIMEZONE: str = "Europe/Rome"
     DEFAULT_SLOT_DURATION_MINUTES: int = 90
 

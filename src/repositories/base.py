@@ -3,11 +3,19 @@ from datetime import date
 
 from src.models import (
     BookingStatus,
+    CityRecommendationItem,
+    ConciergeCategory,
+    ConciergeRequest,
     CRMNotification,
     FAQItem,
+    GuestFeedback,
+    GuestProfile,
+    HotelProperty,
+    HotelStay,
     Reservation,
     RestaurantSettings,
     Table,
+    TravelPersona,
 )
 
 
@@ -65,4 +73,59 @@ class BaseNotificationRepository(ABC):
 
     @abstractmethod
     async def mark_as_read(self, notification_id: str) -> bool:
+        pass
+
+
+class BaseGuestCRMRepository(ABC):
+    @abstractmethod
+    async def get_guest_by_phone(self, phone: str) -> GuestProfile | None:
+        pass
+
+    @abstractmethod
+    async def get_guest_by_id(self, guest_id: str) -> GuestProfile | None:
+        pass
+
+    @abstractmethod
+    async def save_guest(self, guest: GuestProfile) -> GuestProfile:
+        pass
+
+    @abstractmethod
+    async def get_active_or_upcoming_stay(self, guest_id: str) -> HotelStay | None:
+        pass
+
+    @abstractmethod
+    async def get_stay_by_id(self, stay_id: str) -> HotelStay | None:
+        pass
+
+    @abstractmethod
+    async def save_stay(self, stay: HotelStay) -> HotelStay:
+        pass
+
+    @abstractmethod
+    async def get_hotel_property(self, hotel_id: str) -> HotelProperty | None:
+        pass
+
+    @abstractmethod
+    async def add_concierge_request(
+        self, request: ConciergeRequest
+    ) -> ConciergeRequest:
+        pass
+
+    @abstractmethod
+    async def get_concierge_requests(
+        self, stay_id: str | None = None, guest_id: str | None = None
+    ) -> list[ConciergeRequest]:
+        pass
+
+    @abstractmethod
+    async def get_city_recommendations(
+        self,
+        hotel_id: str,
+        persona: TravelPersona | None = None,
+        category: ConciergeCategory | None = None,
+    ) -> list[CityRecommendationItem]:
+        pass
+
+    @abstractmethod
+    async def record_feedback(self, feedback: GuestFeedback) -> GuestFeedback:
         pass

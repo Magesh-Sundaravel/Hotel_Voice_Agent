@@ -2,11 +2,13 @@ import pytest
 
 from src.repositories.memory_repo import (
     InMemoryBookingRepository,
+    InMemoryGuestCRMRepository,
     InMemoryNotificationRepository,
     InMemoryRestaurantRepository,
 )
 from src.services.availability_service import AvailabilityService
 from src.services.booking_service import BookingService
+from src.services.guest_crm_service import GuestCRMService
 from src.services.notification_service import NotificationService
 from src.services.restaurant_service import RestaurantService
 
@@ -50,4 +52,18 @@ def booking_service(booking_repo, availability_service, notification_service):
         booking_repo=booking_repo,
         availability_service=availability_service,
         notification_service=notification_service,
+    )
+
+
+@pytest.fixture
+def guest_crm_repo():
+    return InMemoryGuestCRMRepository()
+
+
+@pytest.fixture
+def guest_crm_service(guest_crm_repo, notification_repo):
+    return GuestCRMService(
+        crm_repo=guest_crm_repo,
+        notification_repo=notification_repo,
+        default_hotel_id="sina_bernini_bristol",
     )

@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app
-from src.models import CreateReservationRequest
+from src.models import BookingStatus, CreateReservationRequest
 from src.repositories import get_booking_repository, get_notification_repository
 from src.services import AvailabilityService, BookingService, NotificationService
 
@@ -19,7 +19,7 @@ def test_health_endpoint(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert "Trattoria" in data["restaurant"]
+    assert "Sina" in data["hotel"]
 
 
 def test_availability_endpoint(client):
@@ -51,7 +51,13 @@ async def test_reservations_and_notifications_endpoints(client):
     notif_svc = NotificationService(notif_repo)
     booking_svc = BookingService(book_repo, avail_svc, notif_svc)
 
-    target_date = date.today() + timedelta(days=1)
+    target_date = date.today() + timedelta(days=5)
+
+    # Cancel any previous test reservations for this customer to ensure clean slot
+    for old_res in await book_repo.get_by_customer_phone("+39 333 8888888"):
+        old_res.status = BookingStatus.CANCELLED
+        await book_repo.update_reservation(old_res)
+
     res = await booking_svc.create_booking(
         restaurant_id="default_trattoria",
         request=CreateReservationRequest(

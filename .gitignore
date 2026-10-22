@@ -15,3 +15,10 @@ wheels/
 # Pytest cache
 .pytest_cache/
 .ruff_cache/
+
+# Node & Frontend dependencies
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.DS_Store
+
