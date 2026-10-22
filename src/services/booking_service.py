@@ -1,4 +1,5 @@
 import random
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -26,6 +27,11 @@ def normalize_phone(phone: str) -> str:
     return phone.replace(" ", "").replace("-", "").replace("+", "").strip()
 
 
+def is_valid_phone(phone: str) -> bool:
+    digits = re.sub(r"\D", "", phone)
+    return len(digits) >= 8
+
+
 class BookingService:
     def __init__(
         self,
@@ -42,6 +48,22 @@ class BookingService:
         restaurant_id: str,
         request: CreateReservationRequest,
     ) -> ServiceResult:
+        # Validate customer name
+        if not request.customer_name or len(request.customer_name.strip()) < 2:
+            return ServiceResult(
+                success=False,
+                message="Customer name is required.",
+                message_it="È necessario specificare un nome e cognome valido per la prenotazione.",
+            )
+
+        # Validate customer phone
+        if not request.customer_phone or not is_valid_phone(request.customer_phone):
+            return ServiceResult(
+                success=False,
+                message="Invalid phone number.",
+                message_it="Il recapito telefonico inserito non è valido. Si prega di fornire un numero di telefono valido (almeno 8 cifre).",
+            )
+
         # Check availability deterministically
         avail = await self.availability_service.check_availability(
             restaurant_id=restaurant_id,
@@ -217,6 +239,7 @@ class BookingService:
                 booking_date=target_date,
                 booking_time_str=target_time,
                 party_size=target_party_size,
+                exclude_reservation_id=res.id,
             )
             if not avail.is_available:
                 alt_msg = ""

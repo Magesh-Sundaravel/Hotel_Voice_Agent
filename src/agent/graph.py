@@ -6,7 +6,7 @@ from langchain_groq import ChatGroq
 from langgraph.graph import START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
-from src.agent.prompts import get_system_prompt
+from src.agent.prompts import format_date_italian, get_system_prompt
 from src.agent.state import AgentState
 from src.config import settings
 from src.repositories import (
@@ -70,7 +70,18 @@ def create_agent_graph(
 
     async def call_model(state: AgentState):
         messages = list(state.get("messages", []))
-        current_date = state.get("current_date") or date.today().isoformat()
+        raw_date = state.get("current_date")
+        if not raw_date:
+            current_date = format_date_italian(date.today())
+        elif "(" not in raw_date:
+            try:
+                parsed_d = date.fromisoformat(raw_date)
+                current_date = format_date_italian(parsed_d)
+            except (ValueError, TypeError):
+                current_date = raw_date
+        else:
+            current_date = raw_date
+
         caller_phone = state.get("caller_phone") or "Non disponibile"
 
         sys_prompt = get_system_prompt(

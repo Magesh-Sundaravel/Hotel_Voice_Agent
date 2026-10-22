@@ -1,4 +1,5 @@
-from datetime import date, time
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
 
 from src.models import (
     AvailabilityResponse,
@@ -39,6 +40,8 @@ class AvailabilityService:
         booking_date: date,
         booking_time_str: str,
         party_size: int,
+        exclude_reservation_id: str | None = None,
+        now_dt: datetime | None = None,
     ) -> AvailabilityResponse:
         settings = await self.restaurant_repo.get_settings(restaurant_id)
         if not settings:
@@ -48,6 +51,25 @@ class AvailabilityService:
                 requested_time=booking_time_str,
                 party_size=party_size,
                 reason="Ristorante non trovato.",
+            )
+
+        # Check for past dates or past time slots on current date
+        try:
+            tz = ZoneInfo(settings.timezone)
+        except (KeyError, ValueError):
+            tz = ZoneInfo("Europe/Rome")
+
+        current_dt = now_dt or datetime.now(tz)
+        today_in_tz = current_dt.date()
+
+        if booking_date < today_in_tz:
+            date_str = booking_date.strftime("%d/%m/%Y")
+            return AvailabilityResponse(
+                is_available=False,
+                requested_date=booking_date,
+                requested_time=booking_time_str,
+                party_size=party_size,
+                reason=f"Non è possibile prenotare per una data passata ({date_str}).",
             )
 
         if party_size > settings.max_party_size:
@@ -71,6 +93,19 @@ class AvailabilityService:
                 requested_time=booking_time_str,
                 party_size=party_size,
                 reason="Formato orario non valido. Utilizzare il formato HH:MM (es. 20:00).",
+            )
+
+        req_start_min = time_to_minutes(req_time)
+        is_today = booking_date == today_in_tz
+        now_minutes = time_to_minutes(current_dt.time())
+
+        if is_today and req_start_min <= now_minutes:
+            return AvailabilityResponse(
+                is_available=False,
+                requested_date=booking_date,
+                requested_time=booking_time_str,
+                party_size=party_size,
+                reason=f"L'orario richiesto ({booking_time_str}) per oggi è già trascorso.",
             )
 
         # Check if within any shift
@@ -121,12 +156,15 @@ class AvailabilityService:
         )
 
         slot_duration = settings.slot_duration_minutes
-        req_start_min = time_to_minutes(req_time)
         req_end_min = req_start_min + slot_duration
 
         # Try to find a table available at the requested time
         available_table_id = self._find_available_table(
-            candidate_tables, existing_reservations, req_start_min, req_end_min
+            candidate_tables,
+            existing_reservations,
+            req_start_min,
+            req_end_min,
+            exclude_reservation_id=exclude_reservation_id,
         )
 
         if available_table_id:
@@ -145,6 +183,9 @@ class AvailabilityService:
             existing_reservations,
             slot_duration,
             req_start_min,
+            exclude_reservation_id=exclude_reservation_id,
+            is_today=is_today,
+            now_minutes=now_minutes,
         )
 
         return AvailabilityResponse(
@@ -162,10 +203,13 @@ class AvailabilityService:
         existing_reservations: list[Reservation],
         req_start_min: int,
         req_end_min: int,
+        exclude_reservation_id: str | None = None,
     ) -> str | None:
         for table in candidate_tables:
             is_table_free = True
             for res in existing_reservations:
+                if exclude_reservation_id and res.id == exclude_reservation_id:
+                    continue
                 if res.table_id != table.id:
                     continue
                 res_start_min = time_to_minutes(parse_hh_mm(res.booking_time))
@@ -185,6 +229,9 @@ class AvailabilityService:
         existing_reservations: list[Reservation],
         slot_duration: int,
         req_start_min: int,
+        exclude_reservation_id: str | None = None,
+        is_today: bool = False,
+        now_minutes: int = 0,
     ) -> list[str]:
         shift_start_min = time_to_minutes(parse_hh_mm(shift.start_time))
         shift_last_min = time_to_minutes(parse_hh_mm(shift.last_seating_time))
@@ -194,7 +241,7 @@ class AvailabilityService:
         candidate_slots = []
         current = shift_start_min
         while current <= shift_last_min:
-            if current != req_start_min:
+            if current != req_start_min and not (is_today and current <= now_minutes):
                 candidate_slots.append(current)
             current += 30
 
@@ -204,7 +251,11 @@ class AvailabilityService:
         for slot_min in candidate_slots:
             slot_end_min = slot_min + slot_duration
             table_id = self._find_available_table(
-                candidate_tables, existing_reservations, slot_min, slot_end_min
+                candidate_tables,
+                existing_reservations,
+                slot_min,
+                slot_end_min,
+                exclude_reservation_id=exclude_reservation_id,
             )
             if table_id:
                 alternatives.append(minutes_to_time_str(slot_min))

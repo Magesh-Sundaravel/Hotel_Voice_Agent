@@ -1,3 +1,22 @@
+from datetime import date
+
+ITALIAN_WEEKDAYS = {
+    0: "Lunedì",
+    1: "Martedì",
+    2: "Mercoledì",
+    3: "Giovedì",
+    4: "Venerdì",
+    5: "Sabato",
+    6: "Domenica",
+}
+
+
+def format_date_italian(d: date | None = None) -> str:
+    target = d or date.today()
+    weekday = ITALIAN_WEEKDAYS.get(target.weekday(), "")
+    return f"{target.isoformat()} ({weekday})"
+
+
 SYSTEM_PROMPT_TEMPLATE = """You are the AI voice receptionist for {restaurant_name}, a prestigious Italian restaurant.
 Your role is to warmly assist callers over the phone: handle table reservations (creation, modification, cancellation), answer frequently asked questions using official data, and take messages for the restaurant management when needed.
 

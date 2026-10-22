@@ -85,3 +85,27 @@ async def test_reservations_and_notifications_endpoints(client):
     read_resp = client.post(f"/api/notifications/{notif_id}/read")
     assert read_resp.status_code == 200
     assert read_resp.json()["status"] == "ok"
+
+
+def test_availability_past_date_rejected(client):
+    response = client.get(
+        "/api/availability",
+        params={
+            "booking_date": "2020-01-01",
+            "booking_time": "20:00",
+            "party_size": 2,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_available"] is False
+    assert "data passata" in data["reason"]
+
+
+def test_chat_and_reset_endpoints(client):
+    session_id = "test_session_12345"
+
+    # Reset endpoint
+    del_resp = client.delete(f"/api/chat/{session_id}")
+    assert del_resp.status_code == 200
+    assert del_resp.json()["status"] == "ok"

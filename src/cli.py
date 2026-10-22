@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from src.agent.checkpointer import get_checkpointer
 from src.agent.graph import create_agent_graph
+from src.agent.prompts import format_date_italian
 from src.agent.state import AgentState
 from src.config import settings
 from src.repositories import get_booking_repository, get_notification_repository
@@ -54,7 +55,7 @@ async def run_simulator():
             f"call_{caller_phone.replace(' ', '')}_{int(datetime.now().timestamp())}"
         )
         config = {"configurable": {"thread_id": thread_id}}
-        current_date = date.today().isoformat()
+        current_date = format_date_italian(date.today())
 
         # Initial greeting trigger
         initial_trigger = HumanMessage(content="Pronto? Buongiorno.")

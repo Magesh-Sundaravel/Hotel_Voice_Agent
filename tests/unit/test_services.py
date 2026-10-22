@@ -204,3 +204,132 @@ async def test_restaurant_faq_matching(restaurant_service):
     )
     assert pet_ans is not None
     assert "cani" in pet_ans.lower()
+
+
+@pytest.mark.asyncio
+async def test_past_date_rejected(booking_service, availability_service):
+    past_date = date(2020, 1, 1)
+    avail = await availability_service.check_availability(
+        restaurant_id="default_trattoria",
+        booking_date=past_date,
+        booking_time_str="20:00",
+        party_size=2,
+    )
+    assert avail.is_available is False
+    assert "data passata" in avail.reason
+
+    res = await booking_service.create_booking(
+        restaurant_id="default_trattoria",
+        request=CreateReservationRequest(
+            customer_name="Giulio Cesare",
+            customer_phone="+39 333 1234567",
+            party_size=2,
+            booking_date=past_date,
+            booking_time="20:00",
+        ),
+    )
+    assert res.success is False
+    assert "data passata" in res.message_it
+
+
+@pytest.mark.asyncio
+async def test_past_time_today_rejected(availability_service):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    # Mock current time as 21:00 today
+    mock_now = datetime.now(ZoneInfo("Europe/Rome")).replace(
+        hour=21, minute=0, second=0
+    )
+    today = mock_now.date()
+
+    # Asking for 13:00 (lunch) when it's already 21:00 today
+    avail = await availability_service.check_availability(
+        restaurant_id="default_trattoria",
+        booking_date=today,
+        booking_time_str="13:00",
+        party_size=2,
+        now_dt=mock_now,
+    )
+    assert avail.is_available is False
+    assert "già trascorso" in avail.reason
+
+
+@pytest.mark.asyncio
+async def test_modify_booking_no_self_collision_single_table(booking_service):
+    target_date = date.today() + timedelta(days=6)
+    # T5 is the ONLY table that seats 5-6 people
+    create_res = await booking_service.create_booking(
+        restaurant_id="default_trattoria",
+        request=CreateReservationRequest(
+            customer_name="Leonardo Da Vinci",
+            customer_phone="+39 349 9876543",
+            party_size=5,
+            booking_date=target_date,
+            booking_time="20:00",
+        ),
+    )
+    assert create_res.success is True
+    assert create_res.reservation.table_id == "T5"
+    ref = create_res.reservation.reference_code
+
+    # Modifying time from 20:00 to 20:30 on the same date:
+    # Previously failed due to self-collision with T5
+    mod_time = await booking_service.modify_booking(
+        restaurant_id="default_trattoria",
+        request=ModifyReservationRequest(
+            reference_code=ref,
+            customer_phone="+39 349 9876543",
+            new_time="20:30",
+        ),
+    )
+    assert mod_time.success is True
+    assert mod_time.reservation.booking_time == "20:30"
+    assert mod_time.reservation.table_id == "T5"
+
+    # Modifying party size from 5 to 6 at 20:30:
+    # Must succeed on table T5 without self-collision
+    mod_size = await booking_service.modify_booking(
+        restaurant_id="default_trattoria",
+        request=ModifyReservationRequest(
+            reference_code=ref,
+            customer_phone="+39 349 9876543",
+            new_party_size=6,
+        ),
+    )
+    assert mod_size.success is True
+    assert mod_size.reservation.party_size == 6
+
+
+@pytest.mark.asyncio
+async def test_create_booking_invalid_phone_rejected(booking_service):
+    target_date = date.today() + timedelta(days=2)
+    res = await booking_service.create_booking(
+        restaurant_id="default_trattoria",
+        request=CreateReservationRequest(
+            customer_name="Mario Rossi",
+            customer_phone="123",  # Too short / invalid phone
+            party_size=2,
+            booking_date=target_date,
+            booking_time="20:00",
+        ),
+    )
+    assert res.success is False
+    assert "almeno 8 cifre" in res.message_it
+
+
+@pytest.mark.asyncio
+async def test_create_booking_invalid_name_rejected(booking_service):
+    target_date = date.today() + timedelta(days=2)
+    res = await booking_service.create_booking(
+        restaurant_id="default_trattoria",
+        request=CreateReservationRequest(
+            customer_name=" ",  # Empty name
+            customer_phone="+39 333 1234567",
+            party_size=2,
+            booking_date=target_date,
+            booking_time="20:00",
+        ),
+    )
+    assert res.success is False
+    assert "nome e cognome valido" in res.message_it

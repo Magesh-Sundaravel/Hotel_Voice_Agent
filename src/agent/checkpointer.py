@@ -7,8 +7,8 @@ from typing import Any
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from src.config import settings
 
@@ -52,17 +52,22 @@ async def get_checkpointer() -> AsyncIterator[BaseCheckpointSaver | Any]:
     if raw_db_uri:
         db_uri = normalize_db_url(raw_db_uri)
         logger.info(
-            "Initializing Supabase LangGraph AsyncPostgresSaver checkpointer..."
+            "Initializing Supabase LangGraph AsyncPostgresSaver checkpointer with connection pool..."
         )
         # Using prepare_threshold=None is required for Supabase transaction pooler (port 6543 / PgBouncer),
         # which does not support prepared statements and otherwise throws DuplicatePreparedStatement.
-        async with await AsyncConnection.connect(
-            db_uri,
-            autocommit=True,
-            prepare_threshold=None,
-            row_factory=dict_row,
-        ) as conn:
-            postgres_saver = AsyncPostgresSaver(conn=conn)
+        # AsyncConnectionPool ensures thread-safe and coroutine-safe concurrency for multiple calls/sessions.
+        async with AsyncConnectionPool(
+            conninfo=db_uri,
+            open=False,
+            max_size=20,
+            kwargs={
+                "autocommit": True,
+                "prepare_threshold": None,
+                "row_factory": dict_row,
+            },
+        ) as pool:
+            postgres_saver = AsyncPostgresSaver(conn=pool)
             await postgres_saver.setup()
             yield postgres_saver
     else:
