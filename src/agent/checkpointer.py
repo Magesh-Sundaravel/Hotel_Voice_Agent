@@ -7,6 +7,8 @@ from typing import Any
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg import AsyncConnection
+from psycopg.rows import dict_row
 
 from src.config import settings
 
@@ -52,7 +54,15 @@ async def get_checkpointer() -> AsyncIterator[BaseCheckpointSaver | Any]:
         logger.info(
             "Initializing Supabase LangGraph AsyncPostgresSaver checkpointer..."
         )
-        async with AsyncPostgresSaver.from_conn_string(db_uri) as postgres_saver:
+        # Using prepare_threshold=None is required for Supabase transaction pooler (port 6543 / PgBouncer),
+        # which does not support prepared statements and otherwise throws DuplicatePreparedStatement.
+        async with await AsyncConnection.connect(
+            db_uri,
+            autocommit=True,
+            prepare_threshold=None,
+            row_factory=dict_row,
+        ) as conn:
+            postgres_saver = AsyncPostgresSaver(conn=conn)
             await postgres_saver.setup()
             yield postgres_saver
     else:
