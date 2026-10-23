@@ -1,14 +1,21 @@
 import asyncio
 from datetime import date, datetime
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-
-from src.agent.checkpointer import get_checkpointer
-from src.agent.graph import create_agent_graph
-from src.agent.prompts import format_date_italian
-from src.agent.state import AgentState
-from src.config import settings
-from src.repositories import get_booking_repository, get_notification_repository
+from src.repositories import (
+    get_booking_repository,
+    get_guest_crm_repository,
+    get_hotel_room_repository,
+    get_notification_repository,
+    get_restaurant_repository,
+)
+from src.services.availability_service import AvailabilityService
+from src.services.booking_service import BookingService
+from src.services.guest_crm_service import GuestCRMService
+from src.services.hotel_booking_service import HotelBookingService
+from src.services.notification_service import NotificationService
+from src.services.restaurant_service import RestaurantService
+from src.voice.agent import VoiceAgent
+from src.voice.session import CallSession
 
 
 async def run_simulator():
@@ -39,182 +46,168 @@ async def run_simulator():
     print(
         f"\n[SISTEMA] Connessione centralino... Chiamata in arrivo da: {caller_phone} ({caller_name or 'Sconosciuto'})"
     )
-    print("[SISTEMA] Inizializzazione agente LangGraph e checkpointer...")
+    print("[SISTEMA] Inizializzazione VoiceAgent nativo...")
 
-    async with get_checkpointer() as checkpointer:
-        try:
-            agent = create_agent_graph(
-                hotel_id="sina_bernini_bristol",
-                hotel_name="Sina Bernini Bristol",
-                checkpointer=checkpointer,
-            )
-        except Exception as e:  # noqa: BLE001
-            print(f"\n[ERRORE] Impossibile avviare l'agente con Groq: {e}")
-            print("Assicurati di impostare GROQ_API_KEY nel file .env!")
-            return
+    hotel_room_repo = get_hotel_room_repository()
+    notification_repo = get_notification_repository()
+    guest_crm_repo = get_guest_crm_repository()
+    restaurant_repo = get_restaurant_repository()
+    booking_repo = get_booking_repository()
 
-        thread_id = (
-            f"call_{caller_phone.replace(' ', '')}_{int(datetime.now().timestamp())}"
+    crm_svc = GuestCRMService(
+        crm_repo=guest_crm_repo,
+        notification_repo=notification_repo,
+        default_hotel_id="sina_bernini_bristol",
+    )
+    hotel_booking_svc = HotelBookingService(
+        room_repo=hotel_room_repo,
+        notification_repo=notification_repo,
+        guest_crm_service=crm_svc,
+        hotel_id="sina_bernini_bristol",
+    )
+    restaurant_svc = RestaurantService(restaurant_repo)
+    availability_svc = AvailabilityService(restaurant_repo, booking_repo)
+    booking_svc = BookingService(
+        booking_repo=booking_repo,
+        availability_service=availability_svc,
+        notification_service=NotificationService(notification_repo),
+    )
+
+    try:
+        agent = VoiceAgent(
+            hotel_id="sina_bernini_bristol",
+            hotel_name="Sina Bernini Bristol",
+            hotel_booking_service=hotel_booking_svc,
+            guest_crm_service=crm_svc,
+            availability_service=availability_svc,
+            booking_service=booking_svc,
+            restaurant_service=restaurant_svc,
         )
-        config = {"configurable": {"thread_id": thread_id}}
-        current_date = format_date_italian(date.today())
+    except Exception as e:  # noqa: BLE001
+        print(f"\n[ERRORE] Impossibile avviare VoiceAgent con Groq: {e}")
+        print("Assicurati di impostare GROQ_API_KEY nel file .env!")
+        return
 
-        # Initial greeting trigger
-        initial_trigger = HumanMessage(content="Pronto? Buongiorno.")
-        state: AgentState = {
-            "messages": [initial_trigger],
-            "hotel_id": "sina_bernini_bristol",
-            "hotel_name": "Sina Bernini Bristol",
-            "caller_phone": caller_phone,
-            "caller_name": caller_name,
-            "current_date": current_date,
-        }
+    def create_fresh_session():
+        cid = f"call_{caller_phone.replace(' ', '')}_{int(datetime.now().timestamp())}"
+        clean_phone = caller_phone.replace(" ", "").replace("+", "")
+        return CallSession(
+            call_id=cid,
+            user_id=f"user_{clean_phone}",
+            caller_phone=caller_phone,
+            caller_name=caller_name,
+            hotel_id="sina_bernini_bristol",
+            hotel_name="Sina Bernini Bristol",
+        )
 
-        print("\n[AI]: ", end="")
+    session = create_fresh_session()
+
+    print("\n[AI]: ", end="")
+    try:
+        res = await agent.run_turn(session, "Pronto? Buongiorno.")
+        print(res.reply_text)
+    except Exception as e:  # noqa: BLE001
+        print(f"Errore durante l'elaborazione: {e}")
+        return
+
+    # Conversation loop
+    while True:
         try:
-            result = await agent.ainvoke(state, config=config)
-            last_ai = [
-                m for m in result["messages"] if isinstance(m, AIMessage) and m.content
-            ][-1]
-            print(last_ai.content)
-        except Exception as e:  # noqa: BLE001
-            print(f"Errore durante l'elaborazione: {e}")
-            return
+            user_text = input("\n[TU / CHIAMANTE]: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\nChiamata terminata.")
+            break
 
-        # Conversation loop
-        while True:
-            try:
-                user_text = input("\n[TU / CHIAMANTE]: ").strip()
-            except (KeyboardInterrupt, EOFError):
-                print("\nChiamata terminata.")
-                break
+        if not user_text:
+            continue
 
-            if not user_text:
-                continue
+        if user_text.lower() in ["/esci", "esci", "exit", "quit"]:
+            print("\nArrivederci!")
+            break
 
-            if user_text.lower() in ["/esci", "esci", "exit", "quit"]:
+        if user_text.lower() in ["/chiudi", "riattacca", "/hangup"]:
+            print("\n📴 [HAI RIAGGANCIATO IL RICEVITORE]")
+            choice = (
+                input("\nVuoi effettuare un'altra chiamata? (s/n, default 's'): ")
+                .strip()
+                .lower()
+            )
+            if choice == "n":
                 print("\nArrivederci!")
                 break
+            session = create_fresh_session()
+            res = await agent.run_turn(session, "Pronto? Buongiorno.")
+            print(f"\n[AI]: {res.reply_text}")
+            continue
 
-            if user_text.lower() in ["/chiudi", "riattacca", "/hangup"]:
-                print("\n📴 [HAI RIAGGANCIATO IL RICEVITORE]")
+        if user_text.lower() == "/notifiche":
+            repo = get_notification_repository()
+            notifs = await repo.get_notifications("sina_bernini_bristol")
+            print("\n--- NOTIFICHE CRM HOTEL SINA BERNINI BRISTOL ---")
+            if not notifs:
+                print("Nessuna notifica presente.")
+            for n in notifs:
+                status = "🔴 Non letta" if not n.is_read else "🟢 Letta"
+                print(
+                    f"[{n.created_at.strftime('%H:%M:%S')}] {status} [{n.type.value.upper()}] {n.title}"
+                )
+                print(f"    Messaggio: {n.message}")
+            print("------------------------------------")
+            continue
+
+        if user_text.lower() == "/prenotazioni":
+            repo = get_booking_repository()
+            bookings = await repo.get_reservations_for_date(
+                "sina_bernini_bristol", date.today(), status=None
+            )
+            print(
+                f"\n--- PRENOTAZIONI CONFERMATE OGGI ({date.today().strftime('%d/%m/%Y')}) ---"
+            )
+            if not bookings:
+                print("Nessuna prenotazione trovata per oggi.")
+            for b in bookings:
+                print(
+                    f"[{b.reference_code}] {b.booking_time} - {b.customer_name} ({b.party_size} persone) Tel: {b.customer_phone} [Stato: {b.status.value}]"
+                )
+                if b.dietary_notes:
+                    print(f"    Note dietetiche: {b.dietary_notes}")
+            print(
+                "-------------------------------------------------------------------"
+            )
+            continue
+
+        if user_text.lower() == "/reset":
+            print("\n[SISTEMA] Reset conversazione e nuova chiamata.")
+            session = create_fresh_session()
+            res = await agent.run_turn(session, "Pronto? Buongiorno.")
+            print(f"\n[AI]: {res.reply_text}")
+            continue
+
+        try:
+            res = await agent.run_turn(session, user_text)
+            print(f"\n[AI]: {res.reply_text}")
+
+            if res.call_ended:
+                print("\n" + "=" * 50)
+                print("📴  [TELEFONATA CONCLUSA - RICEVITORE RIAGGANCIATO]")
+                print("=" * 50)
                 choice = (
-                    input("\nVuoi effettuare un'altra chiamata? (s/n, default 's'): ")
+                    input(
+                        "\nVuoi simulare una nuova telefonata? (s/n, default 's'): "
+                    )
                     .strip()
                     .lower()
                 )
                 if choice == "n":
                     print("\nArrivederci!")
                     break
-                # Start fresh call
-                thread_id = f"call_{caller_phone.replace(' ', '')}_{int(datetime.now().timestamp())}"
-                config = {"configurable": {"thread_id": thread_id}}
-                state["messages"] = [HumanMessage(content="Pronto? Buongiorno.")]
-                result = await agent.ainvoke(state, config=config)
-                last_ai = [
-                    m
-                    for m in result["messages"]
-                    if isinstance(m, AIMessage) and m.content
-                ][-1]
-                print(f"\n[AI]: {last_ai.content}")
-                continue
+                print("\n[SISTEMA] Nuova telefonata in arrivo...")
+                session = create_fresh_session()
+                res = await agent.run_turn(session, "Pronto? Buongiorno.")
+                print(f"\n[AI]: {res.reply_text}")
 
-            if user_text.lower() == "/notifiche":
-                repo = get_notification_repository()
-                notifs = await repo.get_notifications("sina_bernini_bristol")
-                print("\n--- NOTIFICHE CRM HOTEL SINA BERNINI BRISTOL ---")
-                if not notifs:
-                    print("Nessuna notifica presente.")
-                for n in notifs:
-                    status = "🔴 Non letta" if not n.is_read else "🟢 Letta"
-                    print(
-                        f"[{n.created_at.strftime('%H:%M:%S')}] {status} [{n.type.value.upper()}] {n.title}"
-                    )
-                    print(f"    Messaggio: {n.message}")
-                print("------------------------------------")
-                continue
-
-            if user_text.lower() == "/prenotazioni":
-                repo = get_booking_repository()
-                bookings = await repo.get_reservations_for_date(
-                    "sina_bernini_bristol", date.today(), status=None
-                )
-                print(
-                    f"\n--- PRENOTAZIONI CONFERMATE OGGI ({date.today().strftime('%d/%m/%Y')}) ---"
-                )
-                if not bookings:
-                    print("Nessuna prenotazione trovata per oggi.")
-                for b in bookings:
-                    print(
-                        f"[{b.reference_code}] {b.booking_time} - {b.customer_name} ({b.party_size} persone) Tel: {b.customer_phone} [Stato: {b.status.value}]"
-                    )
-                    if b.dietary_notes:
-                        print(f"    Note dietetiche: {b.dietary_notes}")
-                print(
-                    "-------------------------------------------------------------------"
-                )
-                continue
-
-            if user_text.lower() == "/reset":
-                print("\n[SISTEMA] Reset conversazione e nuova chiamata.")
-                thread_id = f"call_{caller_phone.replace(' ', '')}_{int(datetime.now().timestamp())}"
-                config = {"configurable": {"thread_id": thread_id}}
-                state["messages"] = [HumanMessage(content="Pronto? Buongiorno.")]
-                result = await agent.ainvoke(state, config=config)
-                last_ai = [
-                    m
-                    for m in result["messages"]
-                    if isinstance(m, AIMessage) and m.content
-                ][-1]
-                print(f"\n[AI]: {last_ai.content}")
-                continue
-
-            turn_input = {"messages": [HumanMessage(content=user_text)]}
-
-            try:
-                result = await agent.ainvoke(turn_input, config=config)
-                new_messages = result["messages"]
-
-                # Check if end_call was called
-                call_ended = False
-                for m in new_messages:
-                    if isinstance(m, ToolMessage) and m.name == "end_call":
-                        call_ended = True
-
-                last_ai = [
-                    m for m in new_messages if isinstance(m, AIMessage) and m.content
-                ][-1]
-                print(f"\n[AI]: {last_ai.content}")
-
-                if call_ended:
-                    print("\n" + "=" * 50)
-                    print("📴  [TELEFONATA CONCLUSA - RICEVITORE RIAGGANCIATO]")
-                    print("=" * 50)
-                    choice = (
-                        input(
-                            "\nVuoi simulare una nuova telefonata? (s/n, default 's'): "
-                        )
-                        .strip()
-                        .lower()
-                    )
-                    if choice == "n":
-                        print("\nArrivederci!")
-                        break
-                    # Reset for new call
-                    print("\n[SISTEMA] Nuova telefonata in arrivo...")
-                    thread_id = f"call_{caller_phone.replace(' ', '')}_{int(datetime.now().timestamp())}"
-                    config = {"configurable": {"thread_id": thread_id}}
-                    state["messages"] = [HumanMessage(content="Pronto? Buongiorno.")]
-                    result = await agent.ainvoke(state, config=config)
-                    last_ai = [
-                        m
-                        for m in result["messages"]
-                        if isinstance(m, AIMessage) and m.content
-                    ][-1]
-                    print(f"\n[AI]: {last_ai.content}")
-
-            except Exception as e:  # noqa: BLE001
-                print(f"\n[ERRORE AGENTE]: {e}")
+        except Exception as e:  # noqa: BLE001
+            print(f"\n[ERRORE AGENTE]: {e}")
 
 
 def main():

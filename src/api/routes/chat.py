@@ -1,16 +1,24 @@
-import re
-from datetime import date
+"""Chat route supporting real-time web chat with native VoiceAgent.
+
+Maintains multi-turn sessions in SessionStore without LangGraph or Postgres checkpointer.
+"""
+
+from __future__ import annotations
+
+import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from pydantic import BaseModel, Field
 
-from src.agent.checkpointer import get_memory_checkpointer
-from src.agent.graph import create_agent_graph
-from src.agent.prompts import format_date_italian
-from src.agent.state import AgentState
+from src.voice.agent import VoiceAgent
+from src.voice.session import SessionStore
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["Voice & Chat Agent"])
+
+# Global session store for chat/web sessions
+chat_session_store = SessionStore(ttl_seconds=3600.0)
 
 
 class ChatRequest(BaseModel):
@@ -38,75 +46,64 @@ class ChatResponse(BaseModel):
     )
 
 
-@router.post("/chat", response_model=ChatResponse)
-async def chat_with_agent(req: ChatRequest, request: Request):
-    agent = getattr(getattr(request.app, "state", None), "agent_graph", None)
+def _get_agent(request: Request, req: ChatRequest) -> VoiceAgent:
+    """Gets agent from app state or instantiates one."""
+    agent = getattr(getattr(request.app, "state", None), "voice_agent", None)
     if agent is None:
-        checkpointer = (
-            getattr(getattr(request.app, "state", None), "checkpointer", None)
-            or get_memory_checkpointer()
-        )
+        agent = getattr(getattr(request.app, "state", None), "agent_graph", None)
+    if agent is None:
         try:
-            agent = create_agent_graph(
+            agent = VoiceAgent(
                 hotel_id=req.hotel_id,
                 hotel_name=req.hotel_name,
-                checkpointer=checkpointer,
+                hotel_booking_service=getattr(getattr(request.app, "state", None), "hotel_booking_service", None),
+                guest_crm_service=getattr(getattr(request.app, "state", None), "crm_service", None),
+                availability_service=getattr(getattr(request.app, "state", None), "availability_service", None),
+                booking_service=getattr(getattr(request.app, "state", None), "booking_service", None),
+                restaurant_service=getattr(getattr(request.app, "state", None), "restaurant_service", None),
+                notification_service=getattr(getattr(request.app, "state", None), "notification_service", None),
+                email_service=getattr(getattr(request.app, "state", None), "email_service", None),
+                twilio_service=getattr(getattr(request.app, "state", None), "twilio_service", None),
             )
         except Exception as e:
             raise HTTPException(
-                status_code=500, detail=f"Failed to initialize agent: {e!s}"
+                status_code=500, detail=f"Failed to initialize voice agent: {e!s}"
             ) from e
+    return agent
 
-    input_state: AgentState = {
-        "messages": [HumanMessage(content=req.message)],
-        "hotel_id": req.hotel_id,
-        "hotel_name": req.hotel_name,
-        "caller_phone": req.caller_phone,
-        "caller_name": req.caller_name,
-        "current_date": format_date_italian(date.today()),
-    }
 
-    config = {"configurable": {"thread_id": req.session_id}}
-    result = await agent.ainvoke(input_state, config=config)
-    updated_messages = result.get("messages", [])
+@router.post("/chat", response_model=ChatResponse)
+async def chat_with_agent(req: ChatRequest, request: Request):
+    agent = _get_agent(request, req)
 
-    call_ended = False
-    reservation_code = None
-    last_ai = None
+    # Retrieve or create session with deterministic identity injection
+    session = chat_session_store.get_or_create(
+        session_id=req.session_id,
+        caller_phone=req.caller_phone or "+39 333 0000000",
+        caller_name=req.caller_name,
+        hotel_id=req.hotel_id,
+        hotel_name=req.hotel_name,
+    )
 
-    for m in reversed(updated_messages):
-        if last_ai is None and isinstance(m, AIMessage) and m.content:
-            last_ai = m.content
+    if not hasattr(agent, "run_turn"):
+        raise HTTPException(status_code=500, detail="Incompatible agent interface.")
 
-    for m in updated_messages:
-        if isinstance(m, ToolMessage):
-            if m.name == "end_call":
-                call_ended = True
-            if m.name in ["create_hotel_room_booking", "create_reservation"] and m.content:
-                match = re.search(r"SINA-\d{4}", m.content)
-                if match:
-                    reservation_code = match.group(0)
+    result = await agent.run_turn(session=session, user_message=req.message)
 
     return ChatResponse(
         session_id=req.session_id,
-        response=last_ai or "Come posso esserLe utile da Sina Hotels?",
-        history_length=len(updated_messages),
-        call_ended=call_ended,
-        reservation_code=reservation_code,
+        response=result.reply_text,
+        history_length=len(session.messages),
+        call_ended=result.call_ended,
+        reservation_code=result.reservation_code,
     )
 
 
 @router.delete("/chat/{session_id}")
 async def reset_session(session_id: str, request: Request):
-    checkpointer = (
-        getattr(getattr(request.app, "state", None), "checkpointer", None)
-        or get_memory_checkpointer()
-    )
-    if hasattr(checkpointer, "adelete_thread"):
-        await checkpointer.adelete_thread(session_id)
-    elif hasattr(checkpointer, "delete_thread"):
-        checkpointer.delete_thread(session_id)
+    # Reset in SessionStore
+    deleted = chat_session_store.delete(session_id)
     return {
         "status": "ok",
-        "message": f"Session {session_id} reset successfully",
+        "message": f"Session {session_id} reset successfully (existed={deleted})",
     }

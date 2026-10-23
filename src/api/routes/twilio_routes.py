@@ -3,10 +3,9 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
 from pydantic import BaseModel, Field
 
-from src.agent.checkpointer import get_memory_checkpointer
-from src.agent.graph import create_agent_graph
 from src.config import settings
 from src.integrations.twilio_service import TwilioService
+from src.voice.agent import VoiceAgent
 from src.voice.pipeline import TwilioMediaStreamPipeline
 from src.voice.stt import SpeechToTextService
 from src.voice.tts import ElevenLabsTTSService
@@ -46,26 +45,25 @@ async def handle_incoming_call(request: Request):
 
 @router.websocket("/stream")
 async def twilio_audio_stream(websocket: WebSocket):
-    """Full-duplex WebSocket stream connecting Twilio audio packets with ElevenLabs and LangGraph."""
+    """Full-duplex WebSocket stream connecting Twilio audio packets with ElevenLabs and VoiceAgent."""
     await websocket.accept()
     logger.info("Twilio WebSocket connection accepted.")
 
-    # Obtain cached agent graph from app state or create fallback
-    agent = getattr(getattr(websocket.app, "state", None), "agent_graph", None)
+    # Obtain cached VoiceAgent from app state or create fallback
+    agent = getattr(getattr(websocket.app, "state", None), "voice_agent", None)
     if agent is None:
-        checkpointer = (
-            getattr(getattr(websocket.app, "state", None), "checkpointer", None)
-            or get_memory_checkpointer()
-        )
-        agent = create_agent_graph(
+        agent = getattr(getattr(websocket.app, "state", None), "agent_graph", None)
+    if agent is None:
+        agent = VoiceAgent(
             hotel_id="sina_bernini_bristol",
             hotel_name=settings.DEFAULT_HOTEL_NAME,
-            checkpointer=checkpointer,
+            hotel_booking_service=getattr(getattr(websocket.app, "state", None), "hotel_booking_service", None),
+            guest_crm_service=getattr(getattr(websocket.app, "state", None), "crm_service", None),
         )
 
     pipeline = TwilioMediaStreamPipeline(
         websocket=websocket,
-        agent_graph=agent,
+        voice_agent=agent,
         stt_service=SpeechToTextService(),
         tts_service=ElevenLabsTTSService(),
         hotel_id="sina_bernini_bristol",
