@@ -56,5 +56,9 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = "prenotazioni@sinahotels.com"
 
+    # Owner notification settings
+    OWNER_EMAIL: str = ""
+    OWNER_PHONE: str = ""
+
 
 settings = Settings()

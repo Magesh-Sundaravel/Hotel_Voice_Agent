@@ -48,22 +48,12 @@ class TwilioService:
         response.append(connect)
         return str(response)
 
-    async def send_booking_confirmation_sms(
+    async def send_sms(
         self,
         to_phone: str,
-        guest_name: str,
-        reference_code: str,
-        category: str,
-        check_in_date: str,
-        check_out_date: str,
+        body: str,
     ) -> bool:
-        """Sends an SMS confirmation to the guest's mobile phone."""
-        body = (
-            f"Sina Bernini Bristol: Gentile {guest_name}, Le confermiamo la prenotazione "
-            f"{reference_code} per {category} (Arrivo: {check_in_date}, Partenza: {check_out_date}). "
-            f"Per assistenza o transfer: +39 06 4883051. A presto a Roma!"
-        )
-
+        """Sends an outbound SMS message to the given phone number."""
         if not self._client or not self.phone_number:
             logger.info(
                 "[SIMULATED SMS] To: %s | From: %s | Message: %s",
@@ -84,6 +74,23 @@ class TwilioService:
         except (ValueError, RuntimeError, OSError) as e:
             logger.error("Failed to send Twilio SMS to %s: %s", to_phone, e)
             return False
+
+    async def send_booking_confirmation_sms(
+        self,
+        to_phone: str,
+        guest_name: str,
+        reference_code: str,
+        category: str,
+        check_in_date: str,
+        check_out_date: str,
+    ) -> bool:
+        """Sends an SMS confirmation to the guest's mobile phone."""
+        body = (
+            f"Sina Bernini Bristol: Gentile {guest_name}, Le confermiamo la prenotazione "
+            f"{reference_code} per {category} (Arrivo: {check_in_date}, Partenza: {check_out_date}). "
+            f"Per assistenza o transfer: +39 06 4883051. A presto a Roma!"
+        )
+        return await self.send_sms(to_phone=to_phone, body=body)
 
     def initiate_outbound_call(
         self,

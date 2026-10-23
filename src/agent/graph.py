@@ -84,7 +84,11 @@ def create_agent_graph(
     # Support legacy restaurant tools if services are passed in
     if availability_service or booking_service:
         avail_s = availability_service or AvailabilityService(restaurant_repo, booking_repo)
-        notif_s = notification_service or NotificationService(notification_repo)
+        notif_s = notification_service or NotificationService(
+            notification_repo=notification_repo,
+            email_service=e_svc,
+            twilio_service=t_svc,
+        )
         rest_s = restaurant_service or RestaurantService(restaurant_repo)
         b_s = booking_service or BookingService(booking_repo, avail_s, notif_s)
         legacy_tools = build_tools(

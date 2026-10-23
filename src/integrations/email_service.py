@@ -25,6 +25,45 @@ class EmailService:
         self.smtp_password = smtp_password or settings.SMTP_PASSWORD
         self.from_email = from_email or settings.SMTP_FROM_EMAIL or "prenotazioni@sinahotels.com"
 
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        body: str,
+        html_body: str | None = None,
+    ) -> bool:
+        """Sends an email message to the specified recipient."""
+        message = EmailMessage()
+        message["From"] = self.from_email
+        message["To"] = to_email
+        message["Subject"] = subject
+        message.set_content(body)
+        if html_body:
+            message.add_alternative(html_body, subtype="html")
+
+        if not self.smtp_host or not self.smtp_user:
+            logger.info(
+                "[SIMULATED EMAIL] To: %s | Subject: %s",
+                to_email,
+                subject,
+            )
+            return True
+
+        try:
+            await aiosmtplib.send(
+                message,
+                hostname=self.smtp_host,
+                port=self.smtp_port,
+                username=self.smtp_user,
+                password=self.smtp_password,
+                start_tls=True,
+            )
+            logger.info("Email sent to %s: %s", to_email, subject)
+            return True
+        except (aiosmtplib.SMTPException, OSError, ValueError) as e:
+            logger.error("Failed to send email to %s: %s", to_email, e)
+            return False
+
     async def send_room_booking_confirmation(
         self,
         to_email: str,
