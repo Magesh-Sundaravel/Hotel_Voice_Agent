@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from src.models.hotel_booking import (
@@ -26,7 +26,11 @@ from src.services.hotel_booking_service import HotelBookingService
 router = APIRouter(prefix="/api", tags=["Sina Hotel Rooms & Bookings"])
 
 
-def get_hotel_booking_service() -> HotelBookingService:
+def get_hotel_booking_service(request: Request) -> HotelBookingService:
+    if hasattr(getattr(request, "app", None), "state"):
+        svc = getattr(request.app.state, "hotel_booking_service", None)
+        if svc is not None:
+            return svc
     crm_service = GuestCRMService(
         crm_repo=get_guest_crm_repository(),
         notification_repo=get_notification_repository(),

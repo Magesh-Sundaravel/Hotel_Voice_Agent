@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.models import (
     AvailabilityResponse,
@@ -60,9 +60,19 @@ async def mark_notification_read(notification_id: str):
 async def check_availability_endpoint(
     booking_date: date,
     booking_time: str,
+    request: Request,
     party_size: int = Query(..., ge=1, le=20),
     restaurant_id: str = "default_trattoria",
 ):
+    if hasattr(getattr(request, "app", None), "state"):
+        svc = getattr(request.app.state, "availability_service", None)
+        if svc is not None:
+            return await svc.check_availability(
+                restaurant_id=restaurant_id,
+                booking_date=booking_date,
+                booking_time_str=booking_time,
+                party_size=party_size,
+            )
     rest_repo = get_restaurant_repository()
     book_repo = get_booking_repository()
     svc = AvailabilityService(rest_repo, book_repo)

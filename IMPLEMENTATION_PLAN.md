@@ -40,7 +40,7 @@ OWNER_PHONE=+39335XXXXXXX
 
 ---
 
-### Fix #2: Cache Agent Graph at App Startup
+### Fix #2: Cache Agent Graph at App Startup ✅ [COMPLETED]
 
 **Problem:** `create_agent_graph()` is called on every `/api/chat` POST and every Twilio WebSocket connection, creating fresh service/repo instances each time.
 
@@ -67,7 +67,7 @@ OWNER_PHONE=+39335XXXXXXX
 
 ---
 
-### Fix #3: Add Supabase Repos for Hotel Rooms & CRM
+### Fix #3: Add Supabase Repos for Hotel Rooms & CRM ✅ [COMPLETED]
 
 **Problem:** Only restaurant repos have Supabase implementations. Hotel rooms and guest CRM are in-memory only — data lost on restart.
 

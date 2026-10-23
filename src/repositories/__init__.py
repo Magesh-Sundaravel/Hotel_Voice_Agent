@@ -1,11 +1,11 @@
 from src.repositories.base import (
     BaseBookingRepository,
     BaseGuestCRMRepository,
+    BaseHotelRoomRepository,
     BaseNotificationRepository,
     BaseRestaurantRepository,
 )
 from src.repositories.hotel_room_repo import (
-    BaseHotelRoomRepository,
     InMemoryHotelRoomRepository,
 )
 from src.repositories.memory_repo import (
@@ -14,6 +14,8 @@ from src.repositories.memory_repo import (
     InMemoryNotificationRepository,
     InMemoryRestaurantRepository,
 )
+from src.repositories.supabase_guest_crm_repo import SupabaseGuestCRMRepository
+from src.repositories.supabase_hotel_room_repo import SupabaseHotelRoomRepository
 from src.repositories.supabase_repo import (
     SupabaseBookingRepository,
     SupabaseNotificationRepository,
@@ -30,6 +32,9 @@ _in_memory_hotel_room_repo = InMemoryHotelRoomRepository()
 
 
 def get_hotel_room_repository() -> BaseHotelRoomRepository:
+    client = get_supabase_client()
+    if client:
+        return SupabaseHotelRoomRepository(client, fallback_repo=_in_memory_hotel_room_repo)
     return _in_memory_hotel_room_repo
 
 
@@ -55,7 +60,9 @@ def get_notification_repository() -> BaseNotificationRepository:
 
 
 def get_guest_crm_repository() -> BaseGuestCRMRepository:
-    # Uses in-memory sample CRM store
+    client = get_supabase_client()
+    if client:
+        return SupabaseGuestCRMRepository(client, fallback_repo=_in_memory_guest_crm_repo)
     return _in_memory_guest_crm_repo
 
 
@@ -71,6 +78,8 @@ __all__ = [
     "InMemoryNotificationRepository",
     "InMemoryRestaurantRepository",
     "SupabaseBookingRepository",
+    "SupabaseGuestCRMRepository",
+    "SupabaseHotelRoomRepository",
     "SupabaseNotificationRepository",
     "SupabaseRestaurantRepository",
     "get_booking_repository",

@@ -5,9 +5,10 @@ from fastapi.testclient import TestClient
 from src.api.main import app
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client():
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client
 
 
 def test_list_rooms_endpoint(client):

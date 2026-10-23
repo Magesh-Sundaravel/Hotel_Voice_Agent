@@ -17,6 +17,7 @@ from src.models import (
     Table,
     TravelPersona,
 )
+from src.models.hotel_booking import HotelRoom, RoomBooking
 
 
 class BaseRestaurantRepository(ABC):
@@ -133,3 +134,68 @@ class BaseGuestCRMRepository(ABC):
     @abstractmethod
     async def record_feedback(self, feedback: GuestFeedback) -> GuestFeedback:
         pass
+
+    # Convenience alias methods
+    async def get_guest(self, guest_id: str) -> GuestProfile | None:
+        return await self.get_guest_by_id(guest_id)
+
+    async def update_guest(self, guest: GuestProfile) -> GuestProfile:
+        return await self.save_guest(guest)
+
+    async def save_concierge_request(
+        self, request: ConciergeRequest
+    ) -> ConciergeRequest:
+        return await self.add_concierge_request(request)
+
+    async def save_feedback(self, feedback: GuestFeedback) -> GuestFeedback:
+        return await self.record_feedback(feedback)
+
+
+class BaseHotelRoomRepository(ABC):
+    @abstractmethod
+    async def get_all_rooms(self) -> list[HotelRoom]:
+        pass
+
+    @abstractmethod
+    async def get_room(self, room_number: str) -> HotelRoom | None:
+        pass
+
+    @abstractmethod
+    async def get_all_bookings(self) -> list[RoomBooking]:
+        pass
+
+    @abstractmethod
+    async def get_booking_by_ref(self, reference_code: str) -> RoomBooking | None:
+        pass
+
+    @abstractmethod
+    async def get_bookings_by_phone(self, phone: str) -> list[RoomBooking]:
+        pass
+
+    @abstractmethod
+    async def get_active_bookings_in_range(
+        self, start_date: date, end_date: date
+    ) -> list[RoomBooking]:
+        pass
+
+    @abstractmethod
+    async def create_booking(self, booking: RoomBooking) -> RoomBooking:
+        pass
+
+    @abstractmethod
+    async def update_booking(self, booking: RoomBooking) -> RoomBooking:
+        pass
+
+    # Convenience alias methods
+    async def get_rooms(self) -> list[HotelRoom]:
+        return await self.get_all_rooms()
+
+    async def get_bookings(self) -> list[RoomBooking]:
+        return await self.get_all_bookings()
+
+    async def get_booking(self, reference_code: str) -> RoomBooking | None:
+        return await self.get_booking_by_ref(reference_code)
+
+    async def save_booking(self, booking: RoomBooking) -> RoomBooking:
+        return await self.create_booking(booking)
+

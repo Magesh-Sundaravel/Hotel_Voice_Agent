@@ -1,17 +1,23 @@
+import asyncio
 from datetime import date, timedelta
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
+from langchain_core.messages import AIMessage
 
+from langgraph.checkpoint.memory import MemorySaver
+from src.agent.graph import create_agent_graph
 from src.api.main import app
 from src.models import BookingStatus, CreateReservationRequest
 from src.repositories import get_booking_repository, get_notification_repository
 from src.services import AvailabilityService, BookingService, NotificationService
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client():
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client
 
 
 def test_health_endpoint(client):
@@ -115,3 +121,91 @@ def test_chat_and_reset_endpoints(client):
     del_resp = client.delete(f"/api/chat/{session_id}")
     assert del_resp.status_code == 200
     assert del_resp.json()["status"] == "ok"
+
+
+def test_lifespan_caches_agent_and_services(client):
+    # Verify shared services and checkpointer are stored on app.state
+    assert hasattr(app.state, "checkpointer")
+    assert hasattr(app.state, "crm_service")
+    assert hasattr(app.state, "hotel_booking_service")
+    assert hasattr(app.state, "notification_service")
+    assert hasattr(app.state, "availability_service")
+    assert hasattr(app.state, "booking_service")
+    assert hasattr(app.state, "restaurant_service")
+    assert hasattr(app.state, "agent_graph")
+
+
+class EchoMockLLM:
+    def bind_tools(self, tools):
+        return self
+
+    async def ainvoke(self, messages):
+        last_human = next(
+            (m.content for m in reversed(messages) if hasattr(m, "content") and not isinstance(m, AIMessage)),
+            "default",
+        )
+        return AIMessage(content=f"Risposta: {last_human}")
+
+
+@pytest.mark.asyncio
+async def test_concurrent_chat_sessions_have_isolated_state(client):
+    mem_checkpointer = MemorySaver()
+    mock_graph = create_agent_graph(
+        llm=EchoMockLLM(),
+        checkpointer=mem_checkpointer,
+    )
+    original_graph = getattr(app.state, "agent_graph", None)
+    app.state.agent_graph = mock_graph
+
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            session_1 = "session_isolated_1"
+            session_2 = "session_isolated_2"
+
+            # Execute two calls concurrently across different sessions
+            resp_1, resp_2 = await asyncio.gather(
+                ac.post(
+                    "/api/chat",
+                    json={"session_id": session_1, "message": "Ciao da Roma"},
+                ),
+                ac.post(
+                    "/api/chat",
+                    json={"session_id": session_2, "message": "Ciao da Milano"},
+                ),
+            )
+
+            assert resp_1.status_code == 200
+            assert resp_2.status_code == 200
+
+            data_1 = resp_1.json()
+            data_2 = resp_2.json()
+
+            assert data_1["session_id"] == session_1
+            assert "Risposta: Ciao da Roma" in data_1["response"]
+            assert data_1["history_length"] == 2
+
+            assert data_2["session_id"] == session_2
+            assert "Risposta: Ciao da Milano" in data_2["response"]
+            assert data_2["history_length"] == 2
+
+            # Now send turn 2 for session 1 only
+            resp_1_turn2 = await ac.post(
+                "/api/chat",
+                json={"session_id": session_1, "message": "Richiesta 2 Roma"},
+            )
+            assert resp_1_turn2.status_code == 200
+            data_1_turn2 = resp_1_turn2.json()
+
+            # Session 1 should now have 4 messages (2 user + 2 ai)
+            assert data_1_turn2["history_length"] == 4
+            assert "Risposta: Richiesta 2 Roma" in data_1_turn2["response"]
+
+            # Session 2 should remain isolated (turn 2 for session 2 has not happened)
+            # Reset both sessions
+            await ac.delete(f"/api/chat/{session_1}")
+            await ac.delete(f"/api/chat/{session_2}")
+
+    finally:
+        app.state.agent_graph = original_graph

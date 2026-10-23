@@ -40,21 +40,22 @@ class ChatResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_agent(req: ChatRequest, request: Request):
-    checkpointer = (
-        getattr(getattr(request.app, "state", None), "checkpointer", None)
-        or get_memory_checkpointer()
-    )
-
-    try:
-        agent = create_agent_graph(
-            hotel_id=req.hotel_id,
-            hotel_name=req.hotel_name,
-            checkpointer=checkpointer,
+    agent = getattr(getattr(request.app, "state", None), "agent_graph", None)
+    if agent is None:
+        checkpointer = (
+            getattr(getattr(request.app, "state", None), "checkpointer", None)
+            or get_memory_checkpointer()
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to initialize agent: {e!s}"
-        ) from e
+        try:
+            agent = create_agent_graph(
+                hotel_id=req.hotel_id,
+                hotel_name=req.hotel_name,
+                checkpointer=checkpointer,
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to initialize agent: {e!s}"
+            ) from e
 
     input_state: AgentState = {
         "messages": [HumanMessage(content=req.message)],

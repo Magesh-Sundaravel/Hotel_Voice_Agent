@@ -129,9 +129,10 @@ def create_agent_graph(
             current_date = raw_date
 
         caller_phone = state.get("caller_phone") or "Non disponibile"
+        current_hotel_name = state.get("hotel_name") or effective_hotel_name
 
         sys_prompt = get_hotel_system_prompt(
-            hotel_name=effective_hotel_name,
+            hotel_name=current_hotel_name,
             current_date=current_date,
             caller_phone=caller_phone,
         )

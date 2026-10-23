@@ -50,17 +50,18 @@ async def twilio_audio_stream(websocket: WebSocket):
     await websocket.accept()
     logger.info("Twilio WebSocket connection accepted.")
 
-    # Obtain checkpointer from app state if available
-    checkpointer = (
-        getattr(getattr(websocket.app, "state", None), "checkpointer", None)
-        or get_memory_checkpointer()
-    )
-
-    agent = create_agent_graph(
-        hotel_id="sina_bernini_bristol",
-        hotel_name=settings.DEFAULT_HOTEL_NAME,
-        checkpointer=checkpointer,
-    )
+    # Obtain cached agent graph from app state or create fallback
+    agent = getattr(getattr(websocket.app, "state", None), "agent_graph", None)
+    if agent is None:
+        checkpointer = (
+            getattr(getattr(websocket.app, "state", None), "checkpointer", None)
+            or get_memory_checkpointer()
+        )
+        agent = create_agent_graph(
+            hotel_id="sina_bernini_bristol",
+            hotel_name=settings.DEFAULT_HOTEL_NAME,
+            checkpointer=checkpointer,
+        )
 
     pipeline = TwilioMediaStreamPipeline(
         websocket=websocket,

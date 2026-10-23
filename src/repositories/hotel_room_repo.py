@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from datetime import date, timedelta
 
 from src.models.hotel_booking import (
@@ -7,45 +6,10 @@ from src.models.hotel_booking import (
     RoomBookingStatus,
     RoomCategory,
 )
+from src.repositories.base import BaseHotelRoomRepository
 
 # Reference dates for sample seeding
 TODAY = date.today()
-
-
-class BaseHotelRoomRepository(ABC):
-    @abstractmethod
-    async def get_all_rooms(self) -> list[HotelRoom]:
-        pass
-
-    @abstractmethod
-    async def get_room(self, room_number: str) -> HotelRoom | None:
-        pass
-
-    @abstractmethod
-    async def get_all_bookings(self) -> list[RoomBooking]:
-        pass
-
-    @abstractmethod
-    async def get_booking_by_ref(self, reference_code: str) -> RoomBooking | None:
-        pass
-
-    @abstractmethod
-    async def get_bookings_by_phone(self, phone: str) -> list[RoomBooking]:
-        pass
-
-    @abstractmethod
-    async def get_active_bookings_in_range(
-        self, start_date: date, end_date: date
-    ) -> list[RoomBooking]:
-        pass
-
-    @abstractmethod
-    async def create_booking(self, booking: RoomBooking) -> RoomBooking:
-        pass
-
-    @abstractmethod
-    async def update_booking(self, booking: RoomBooking) -> RoomBooking:
-        pass
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from src.models import (
@@ -16,7 +16,11 @@ from src.services.guest_crm_service import GuestCRMService
 router = APIRouter(prefix="/api/crm", tags=["Sina Hotels CRM"])
 
 
-def get_guest_crm_service() -> GuestCRMService:
+def get_guest_crm_service(request: Request) -> GuestCRMService:
+    if hasattr(getattr(request, "app", None), "state"):
+        svc = getattr(request.app.state, "crm_service", None)
+        if svc is not None:
+            return svc
     return GuestCRMService(
         crm_repo=get_guest_crm_repository(),
         notification_repo=get_notification_repository(),
