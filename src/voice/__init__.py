@@ -1,3 +1,4 @@
+from src.voice.agent import AgentTurnResult, VoiceAgent
 from src.voice.audio_utils import (
     calculate_rms,
     mulaw_to_pcm,
@@ -5,13 +6,18 @@ from src.voice.audio_utils import (
     pcm_to_mulaw,
 )
 from src.voice.pipeline import TwilioMediaStreamPipeline
+from src.voice.session import CallSession, SessionStore
 from src.voice.stt import SpeechToTextService
 from src.voice.tts import ElevenLabsTTSService
 
 __all__ = [
+    "AgentTurnResult",
+    "CallSession",
     "ElevenLabsTTSService",
+    "SessionStore",
     "SpeechToTextService",
     "TwilioMediaStreamPipeline",
+    "VoiceAgent",
     "calculate_rms",
     "mulaw_to_pcm",
     "mulaw_to_wav_bytes",
