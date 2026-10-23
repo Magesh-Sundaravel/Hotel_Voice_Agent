@@ -4,9 +4,13 @@
 -- Paste this script into your Supabase Dashboard -> SQL Editor to initialize
 -- all hotel rooms, guest CRM, notifications, and room reservations.
 --
--- NOTE: LangGraph's AsyncPostgresSaver checkpointer will automatically create
--- its own internal tables (checkpoints, checkpoint_blobs, checkpoint_writes, 
--- checkpoint_migrations) upon connection when DATABASE_URL is set in .env.
+-- Cleanup obsolete LangGraph checkpointer tables and redundant legacy views
+DROP TABLE IF EXISTS public.checkpoint_writes CASCADE;
+DROP TABLE IF EXISTS public.checkpoint_blobs CASCADE;
+DROP TABLE IF EXISTS public.checkpoints CASCADE;
+DROP TABLE IF EXISTS public.checkpoint_migrations CASCADE;
+DROP VIEW IF EXISTS public.hotel_bookings CASCADE;
+DROP VIEW IF EXISTS public.guests CASCADE;
 -- ==============================================================================
 
 -- 1. HOTELS / PROPERTIES
