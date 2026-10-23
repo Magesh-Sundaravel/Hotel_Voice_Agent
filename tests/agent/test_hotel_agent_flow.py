@@ -1,9 +1,8 @@
 from datetime import date, timedelta
-import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from typing import Any
 
-from src.agent.graph import create_agent_graph
-from src.agent.state import AgentState
+import pytest
+
 from src.repositories.hotel_room_repo import InMemoryHotelRoomRepository
 from src.repositories.memory_repo import (
     InMemoryGuestCRMRepository,
@@ -11,22 +10,21 @@ from src.repositories.memory_repo import (
 )
 from src.services.guest_crm_service import GuestCRMService
 from src.services.hotel_booking_service import HotelBookingService
+from src.voice.agent import VoiceAgent
+from src.voice.session import CallSession
 
 
 class ScriptedMockLLM:
-    def __init__(self, responses):
+    def __init__(self, responses: list[dict[str, Any]]):
         self.responses = list(responses)
         self.idx = 0
 
-    def bind_tools(self, tools):
-        return self
-
-    async def ainvoke(self, messages):
+    async def ainvoke(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
         if self.idx < len(self.responses):
             resp = self.responses[self.idx]
             self.idx += 1
             return resp
-        return AIMessage(content="Posso esserLe utile con qualcos'altro da Sina Hotels?")
+        return {"content": "Posso esserLe utile con qualcos'altro da Sina Hotels?", "tool_calls": []}
 
 
 @pytest.mark.asyncio
@@ -41,9 +39,9 @@ async def test_hotel_room_booking_agent_flow():
     d_out = (date.today() + timedelta(days=9)).isoformat()
 
     responses = [
-        AIMessage(
-            content="",
-            tool_calls=[
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "check_room_availability",
                     "args": {
@@ -53,13 +51,12 @@ async def test_hotel_room_booking_agent_flow():
                         "category": "deluxe",
                     },
                     "id": "call_avail_1",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(
-            content="",
-            tool_calls=[
+        },
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "create_hotel_room_booking",
                     "args": {
@@ -72,17 +69,17 @@ async def test_hotel_room_booking_agent_flow():
                         "special_requests": "Letto matrimoniale King",
                     },
                     "id": "call_book_1",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(
-            content="Gentile Signora Pausini, la Sua prenotazione per la Camera Deluxe è confermata! Codice SINA-2025. Arrivederci!"
-        ),
+        },
+        {
+            "content": "Gentile Signora Pausini, la Sua prenotazione per la Camera Deluxe è confermata! Codice SINA-2025. Arrivederci!",
+            "tool_calls": [],
+        },
     ]
 
     mock_llm = ScriptedMockLLM(responses)
-    agent = create_agent_graph(
+    agent = VoiceAgent(
         hotel_id="sina_bernini_bristol",
         hotel_name="Sina Bernini Bristol",
         llm=mock_llm,
@@ -90,22 +87,25 @@ async def test_hotel_room_booking_agent_flow():
         guest_crm_service=crm_svc,
     )
 
-    state: AgentState = {
-        "messages": [
-            HumanMessage(
-                content=f"Buongiorno, vorrei prenotare una camera Deluxe per 2 persone dal {d_in} al {d_out} a nome Laura Pausini, telefono +39 333 5556677."
-            )
-        ],
-        "caller_phone": "+39 333 5556677",
-        "caller_name": "Laura Pausini",
-        "current_date": date.today().isoformat(),
-    }
+    session = CallSession(
+        call_id="call_test_1",
+        user_id="user_3335556677",
+        caller_phone="+39 333 5556677",
+        caller_name="Laura Pausini",
+        hotel_id="sina_bernini_bristol",
+        hotel_name="Sina Bernini Bristol",
+    )
 
-    result = await agent.ainvoke(state)
-    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    result = await agent.run_turn(
+        session,
+        f"Buongiorno, vorrei prenotare una camera Deluxe per 2 persone dal {d_in} al {d_out} a nome Laura Pausini, telefono +39 333 5556677.",
+    )
+
+    tool_messages = [m for m in session.messages if m.get("role") == "tool"]
     assert len(tool_messages) == 2
-    assert "Deluxe" in tool_messages[0].content
-    assert "confermata con codice" in tool_messages[1].content
+    assert "Deluxe" in str(tool_messages[0].get("content"))
+    assert "reference_code" in str(tool_messages[1].get("content"))
+    assert "confermata" in result.reply_text
 
 
 @pytest.mark.asyncio
@@ -117,9 +117,9 @@ async def test_hotel_early_departure_agent_flow():
     booking_svc = HotelBookingService(room_repo, notif_repo, crm_svc)
 
     responses = [
-        AIMessage(
-            content="",
-            tool_calls=[
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "report_early_departure",
                     "args": {
@@ -128,17 +128,17 @@ async def test_hotel_early_departure_agent_flow():
                         "reason": "Rientro urgente per lavoro",
                     },
                     "id": "call_early_dep_1",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(
-            content="Gentile Signor Ferri, abbiamo registrato la Sua partenza anticipata. Il conto è stato aggiornato. La ringraziamo per aver soggiornato a Sina Hotels."
-        ),
+        },
+        {
+            "content": "Gentile Signor Ferri, abbiamo registrato la Sua partenza anticipata. Il conto è stato aggiornato. La ringraziamo per aver soggiornato a Sina Hotels.",
+            "tool_calls": [],
+        },
     ]
 
     mock_llm = ScriptedMockLLM(responses)
-    agent = create_agent_graph(
+    agent = VoiceAgent(
         hotel_id="sina_bernini_bristol",
         hotel_name="Sina Bernini Bristol",
         llm=mock_llm,
@@ -146,18 +146,21 @@ async def test_hotel_early_departure_agent_flow():
         guest_crm_service=crm_svc,
     )
 
-    state: AgentState = {
-        "messages": [
-            HumanMessage(
-                content="Buongiorno, sono Roberto Ferri dalla camera 101, prenotazione SINA-1018. Purtroppo devo partire oggi in anticipo per un'urgenza di lavoro."
-            )
-        ],
-        "caller_phone": "+39 347 1234567",
-        "caller_name": "Roberto Ferri",
-        "current_date": date.today().isoformat(),
-    }
+    session = CallSession(
+        call_id="call_test_2",
+        user_id="user_3471234567",
+        caller_phone="+39 347 1234567",
+        caller_name="Roberto Ferri",
+        hotel_id="sina_bernini_bristol",
+        hotel_name="Sina Bernini Bristol",
+    )
 
-    result = await agent.ainvoke(state)
-    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    result = await agent.run_turn(
+        session,
+        "Buongiorno, sono Roberto Ferri dalla camera 101, prenotazione SINA-1018. Purtroppo devo partire oggi in anticipo per un'urgenza di lavoro.",
+    )
+
+    tool_messages = [m for m in session.messages if m.get("role") == "tool"]
     assert len(tool_messages) == 1
-    assert "partenza anticipata" in tool_messages[0].content
+    assert "partenza anticipata" in str(tool_messages[0].get("content"))
+    assert "partenza anticipata" in result.reply_text

@@ -1,17 +1,16 @@
 import asyncio
 from datetime import date, timedelta
+from typing import Any
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessage
 
-from langgraph.checkpoint.memory import MemorySaver
-from src.agent.graph import create_agent_graph
 from src.api.main import app
 from src.models import BookingStatus, CreateReservationRequest
-from src.repositories import get_booking_repository, get_notification_repository
+from src.repositories import get_booking_repository, get_notification_repository, get_restaurant_repository
 from src.services import AvailabilityService, BookingService, NotificationService
+from src.voice.agent import VoiceAgent
 
 
 @pytest.fixture(scope="module")
@@ -49,8 +48,6 @@ async def test_reservations_and_notifications_endpoints(client):
     # Seed a reservation
     book_repo = get_booking_repository()
     notif_repo = get_notification_repository()
-    from src.repositories import get_restaurant_repository
-
     rest_repo = get_restaurant_repository()
 
     avail_svc = AvailabilityService(rest_repo, book_repo)
@@ -124,38 +121,37 @@ def test_chat_and_reset_endpoints(client):
 
 
 def test_lifespan_caches_agent_and_services(client):
-    # Verify shared services and checkpointer are stored on app.state
-    assert hasattr(app.state, "checkpointer")
+    # Verify shared services and VoiceAgent are stored on app.state
     assert hasattr(app.state, "crm_service")
     assert hasattr(app.state, "hotel_booking_service")
     assert hasattr(app.state, "notification_service")
     assert hasattr(app.state, "availability_service")
     assert hasattr(app.state, "booking_service")
     assert hasattr(app.state, "restaurant_service")
+    assert hasattr(app.state, "voice_agent")
     assert hasattr(app.state, "agent_graph")
 
 
 class EchoMockLLM:
-    def bind_tools(self, tools):
-        return self
-
-    async def ainvoke(self, messages):
+    async def ainvoke(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
         last_human = next(
-            (m.content for m in reversed(messages) if hasattr(m, "content") and not isinstance(m, AIMessage)),
+            (
+                m.get("content", "")
+                for m in reversed(messages)
+                if isinstance(m, dict) and m.get("role") == "user"
+            ),
             "default",
         )
-        return AIMessage(content=f"Risposta: {last_human}")
+        return {"content": f"Risposta: {last_human}", "tool_calls": []}
 
 
 @pytest.mark.asyncio
 async def test_concurrent_chat_sessions_have_isolated_state(client):
-    mem_checkpointer = MemorySaver()
-    mock_graph = create_agent_graph(
+    mock_agent = VoiceAgent(
         llm=EchoMockLLM(),
-        checkpointer=mem_checkpointer,
     )
-    original_graph = getattr(app.state, "agent_graph", None)
-    app.state.agent_graph = mock_graph
+    original_agent = getattr(app.state, "voice_agent", None)
+    app.state.voice_agent = mock_agent
 
     try:
         async with httpx.AsyncClient(
@@ -202,10 +198,9 @@ async def test_concurrent_chat_sessions_have_isolated_state(client):
             assert data_1_turn2["history_length"] == 4
             assert "Risposta: Richiesta 2 Roma" in data_1_turn2["response"]
 
-            # Session 2 should remain isolated (turn 2 for session 2 has not happened)
             # Reset both sessions
             await ac.delete(f"/api/chat/{session_1}")
             await ac.delete(f"/api/chat/{session_2}")
 
     finally:
-        app.state.agent_graph = original_graph
+        app.state.voice_agent = original_agent

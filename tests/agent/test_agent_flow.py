@@ -1,29 +1,26 @@
 from datetime import date, timedelta
+from typing import Any
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from src.agent.graph import create_agent_graph
-from src.agent.state import AgentState
 from src.models import CreateReservationRequest
+from src.voice.agent import VoiceAgent
+from src.voice.session import CallSession
 
 
 class ScriptedMockLLM:
-    """Deterministic Mock LLM that returns a sequence of predetermined AIMessages."""
+    """Deterministic Mock LLM that returns a sequence of predetermined responses."""
 
-    def __init__(self, responses):
+    def __init__(self, responses: list[dict[str, Any]]):
         self.responses = list(responses)
         self.idx = 0
 
-    def bind_tools(self, tools):
-        return self
-
-    async def ainvoke(self, messages):
+    async def ainvoke(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
         if self.idx < len(self.responses):
             resp = self.responses[self.idx]
             self.idx += 1
             return resp
-        return AIMessage(content="Come posso aiutarLa ulteriormente?")
+        return {"content": "Come posso aiutarLa ulteriormente?", "tool_calls": []}
 
 
 @pytest.mark.asyncio
@@ -38,14 +35,10 @@ async def test_agent_graph_full_booking_flow(
 ):
     target_date = (date.today() + timedelta(days=2)).isoformat()
 
-    # Step 1: User says: "Vorrei prenotare un tavolo per 2 persone stasera alle 20:00 a nome Mario Rossi"
-    # LLM decides to call check_table_availability first
-    # Then after tool returns DISPONIBILE, LLM calls create_reservation
-    # Then LLM confirms to user
     responses = [
-        AIMessage(
-            content="",
-            tool_calls=[
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "check_table_availability",
                     "args": {
@@ -54,13 +47,12 @@ async def test_agent_graph_full_booking_flow(
                         "party_size": 2,
                     },
                     "id": "call_check_avail",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(
-            content="",
-            tool_calls=[
+        },
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "create_reservation",
                     "args": {
@@ -72,20 +64,20 @@ async def test_agent_graph_full_booking_flow(
                         "dietary_notes": None,
                     },
                     "id": "call_create_res",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(
-            content="Perfetto Signor Rossi, la Sua prenotazione per 2 persone è confermata per il 20:00. Il codice è BV-1234. A presto!"
-        ),
+        },
+        {
+            "content": "Perfetto Signor Rossi, la Sua prenotazione per 2 persone è confermata per il 20:00. Il codice è BV-1234. A presto!",
+            "tool_calls": [],
+        },
     ]
 
     mock_llm = ScriptedMockLLM(responses)
 
-    agent = create_agent_graph(
-        restaurant_id="default_trattoria",
-        restaurant_name="Trattoria Bella Vista",
+    agent = VoiceAgent(
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
         llm=mock_llm,
         availability_service=availability_service,
         booking_service=booking_service,
@@ -93,35 +85,31 @@ async def test_agent_graph_full_booking_flow(
         notification_service=notification_service,
     )
 
-    initial_state: AgentState = {
-        "messages": [
-            HumanMessage(
-                content=f"Vorrei prenotare un tavolo per 2 persone per il {target_date} alle 20:00 a nome Mario Rossi, telefono +39 333 1234567"
-            )
-        ],
-        "restaurant_id": "default_trattoria",
-        "restaurant_name": "Trattoria Bella Vista",
-        "caller_phone": "+39 333 1234567",
-        "caller_name": "Mario Rossi",
-        "current_date": date.today().isoformat(),
-    }
+    session = CallSession(
+        call_id="call_trattoria_1",
+        user_id="user_3331234567",
+        caller_phone="+39 333 1234567",
+        caller_name="Mario Rossi",
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
+    )
 
-    result = await agent.ainvoke(initial_state)
+    result = await agent.run_turn(
+        session,
+        f"Vorrei prenotare un tavolo per 2 persone per il {target_date} alle 20:00 a nome Mario Rossi, telefono +39 333 1234567",
+    )
 
-    messages = result["messages"]
-    tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
+    tool_messages = [m for m in session.messages if m.get("role") == "tool"]
     assert len(tool_messages) == 2
 
     # Check availability tool result
-    assert "DISPONIBILE" in tool_messages[0].content
+    assert "DISPONIBILE" in str(tool_messages[0].get("content"))
 
     # Check create reservation tool result
-    assert "confermata con successo" in tool_messages[1].content
+    assert "confermata con successo" in str(tool_messages[1].get("content"))
 
     # Final assistant reply
-    last_message = messages[-1]
-    assert isinstance(last_message, AIMessage)
-    assert "confermata" in last_message.content
+    assert "confermata" in result.reply_text
 
 
 @pytest.mark.asyncio
@@ -158,11 +146,10 @@ async def test_agent_graph_full_slot_curveball_handling(
         ),
     )
 
-    # Caller asks for 4 people at 20:00
     responses = [
-        AIMessage(
-            content="",
-            tool_calls=[
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "check_table_availability",
                     "args": {
@@ -171,20 +158,20 @@ async def test_agent_graph_full_slot_curveball_handling(
                         "party_size": 4,
                     },
                     "id": "call_full_slot",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(
-            content="Mi dispiace, alle 20:00 siamo al completo per 4 persone. Abbiamo però disponibilità alle 19:30 o alle 21:30. Preferisce uno di questi orari?"
-        ),
+        },
+        {
+            "content": "Mi dispiace, alle 20:00 siamo al completo per 4 persone. Abbiamo però disponibilità alle 19:30 o alle 21:30. Preferisce uno di questi orari?",
+            "tool_calls": [],
+        },
     ]
 
     mock_llm = ScriptedMockLLM(responses)
 
-    agent = create_agent_graph(
-        restaurant_id="default_trattoria",
-        restaurant_name="Trattoria Bella Vista",
+    agent = VoiceAgent(
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
         llm=mock_llm,
         availability_service=availability_service,
         booking_service=booking_service,
@@ -192,24 +179,24 @@ async def test_agent_graph_full_slot_curveball_handling(
         notification_service=notification_service,
     )
 
-    state: AgentState = {
-        "messages": [
-            HumanMessage(
-                content=f"Avete un tavolo per 4 per il {target_date.isoformat()} alle 20:00?"
-            )
-        ],
-        "restaurant_id": "default_trattoria",
-        "restaurant_name": "Trattoria Bella Vista",
-        "caller_phone": "+39 333 5555555",
-        "caller_name": "Paolo Neri",
-        "current_date": date.today().isoformat(),
-    }
+    session = CallSession(
+        call_id="call_trattoria_2",
+        user_id="user_3335555555",
+        caller_phone="+39 333 5555555",
+        caller_name="Paolo Neri",
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
+    )
 
-    result = await agent.ainvoke(state)
-    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    result = await agent.run_turn(
+        session,
+        f"Avete un tavolo per 4 per il {target_date.isoformat()} alle 20:00?",
+    )
+    tool_messages = [m for m in session.messages if m.get("role") == "tool"]
     assert len(tool_messages) == 1
-    assert "NON DISPONIBILE" in tool_messages[0].content
-    assert "Orari alternativi disponibili" in tool_messages[0].content
+    assert "NON DISPONIBILE" in str(tool_messages[0].get("content"))
+    assert "Orari alternativi disponibili" in str(tool_messages[0].get("content"))
+    assert "al completo" in result.reply_text
 
 
 @pytest.mark.asyncio
@@ -223,27 +210,27 @@ async def test_agent_graph_faq_handling(
     notification_service,
 ):
     responses = [
-        AIMessage(
-            content="",
-            tool_calls=[
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "get_restaurant_faq_or_hours",
                     "args": {"query": "parcheggio"},
                     "id": "call_faq",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(
-            content="Certamente! Abbiamo una convenzione con il Garage Garibaldi a 50 metri dal ristorante, con la prima ora gratuita."
-        ),
+        },
+        {
+            "content": "Certamente! Abbiamo una convenzione con il Garage Garibaldi a 50 metri dal ristorante, con la prima ora gratuita.",
+            "tool_calls": [],
+        },
     ]
 
     mock_llm = ScriptedMockLLM(responses)
 
-    agent = create_agent_graph(
-        restaurant_id="default_trattoria",
-        restaurant_name="Trattoria Bella Vista",
+    agent = VoiceAgent(
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
         llm=mock_llm,
         availability_service=availability_service,
         booking_service=booking_service,
@@ -251,21 +238,23 @@ async def test_agent_graph_faq_handling(
         notification_service=notification_service,
     )
 
-    state: AgentState = {
-        "messages": [
-            HumanMessage(content="Buonasera, c'è un parcheggio vicino al locale?")
-        ],
-        "restaurant_id": "default_trattoria",
-        "restaurant_name": "Trattoria Bella Vista",
-        "caller_phone": "+39 333 7777777",
-        "caller_name": "Elena",
-        "current_date": date.today().isoformat(),
-    }
+    session = CallSession(
+        call_id="call_trattoria_3",
+        user_id="user_3337777777",
+        caller_phone="+39 333 7777777",
+        caller_name="Elena",
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
+    )
 
-    result = await agent.ainvoke(state)
-    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    result = await agent.run_turn(
+        session,
+        "Buonasera, c'è un parcheggio vicino al locale?",
+    )
+    tool_messages = [m for m in session.messages if m.get("role") == "tool"]
     assert len(tool_messages) == 1
-    assert "Garage Garibaldi" in tool_messages[0].content
+    assert "Garage Garibaldi" in str(tool_messages[0].get("content"))
+    assert "Garage Garibaldi" in result.reply_text
 
 
 @pytest.mark.asyncio
@@ -279,25 +268,27 @@ async def test_agent_graph_end_call_flow(
     notification_service,
 ):
     responses = [
-        AIMessage(
-            content="",
-            tool_calls=[
+        {
+            "content": "",
+            "tool_calls": [
                 {
                     "name": "end_call",
                     "args": {"farewell_message": "Grazie mille e buona serata!"},
                     "id": "call_end",
-                    "type": "tool_call",
                 }
             ],
-        ),
-        AIMessage(content="Grazie mille e buona serata! Arrivederci."),
+        },
+        {
+            "content": "Grazie mille e buona serata! Arrivederci.",
+            "tool_calls": [],
+        },
     ]
 
     mock_llm = ScriptedMockLLM(responses)
 
-    agent = create_agent_graph(
-        restaurant_id="default_trattoria",
-        restaurant_name="Trattoria Bella Vista",
+    agent = VoiceAgent(
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
         llm=mock_llm,
         availability_service=availability_service,
         booking_service=booking_service,
@@ -305,16 +296,20 @@ async def test_agent_graph_end_call_flow(
         notification_service=notification_service,
     )
 
-    state: AgentState = {
-        "messages": [HumanMessage(content="No grazie, a posto così. Buona serata!")],
-        "restaurant_id": "default_trattoria",
-        "restaurant_name": "Trattoria Bella Vista",
-        "caller_phone": "+39 333 7777777",
-        "caller_name": "Elena",
-        "current_date": date.today().isoformat(),
-    }
+    session = CallSession(
+        call_id="call_trattoria_4",
+        user_id="user_3337777777",
+        caller_phone="+39 333 7777777",
+        caller_name="Elena",
+        hotel_id="default_trattoria",
+        hotel_name="Trattoria Bella Vista",
+    )
 
-    result = await agent.ainvoke(state)
-    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    result = await agent.run_turn(
+        session,
+        "No grazie, a posto così. Buona serata!",
+    )
+    tool_messages = [m for m in session.messages if m.get("role") == "tool"]
     assert len(tool_messages) == 1
-    assert "CHIAMATA_TERMINATA" in tool_messages[0].content
+    assert "CHIAMATA_TERMINATA" in str(tool_messages[0].get("content"))
+    assert result.call_ended is True
