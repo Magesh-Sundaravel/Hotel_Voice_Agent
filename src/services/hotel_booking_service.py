@@ -23,6 +23,12 @@ from src.repositories.hotel_room_repo import BaseHotelRoomRepository
 from src.services.guest_crm_service import GuestCRMService
 
 
+def generate_reference_code(prefix: str = "SINA") -> str:
+    """Generates a hotel booking reference code, e.g. 'SINA-4821'."""
+    digits = random.randint(1000, 9999)
+    return f"{prefix}-{digits}"
+
+
 class HotelBookingService:
     def __init__(
         self,
@@ -178,7 +184,18 @@ class HotelBookingService:
 
         nights = avail.nights
         total_price = round(assigned_room.price_per_night * nights, 2)
-        ref_code = f"SINA-{random.randint(1000, 9999)}"
+
+        # Generate unique reference code with collision check
+        ref_code = generate_reference_code()
+        attempts = 0
+        while await self.room_repo.get_booking_by_ref(ref_code) is not None:
+            attempts += 1
+            if attempts > 10:
+                ref_code = f"SINA-{uuid.uuid4().hex[:8].upper()}"
+                if await self.room_repo.get_booking_by_ref(ref_code) is None:
+                    break
+            else:
+                ref_code = generate_reference_code()
 
         booking = RoomBooking(
             id=f"book_{uuid.uuid4().hex[:10]}",

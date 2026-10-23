@@ -1,7 +1,8 @@
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from src.api.middleware.auth import verify_api_key
 from src.models import (
     AvailabilityResponse,
     BookingStatus,
@@ -18,7 +19,11 @@ from src.services.availability_service import AvailabilityService
 router = APIRouter(prefix="/api", tags=["CRM & Reservations"])
 
 
-@router.get("/reservations", response_model=list[Reservation])
+@router.get(
+    "/reservations",
+    response_model=list[Reservation],
+    dependencies=[Depends(verify_api_key)],
+)
 async def list_reservations(
     booking_date: date | None = None,
     restaurant_id: str = "default_trattoria",
@@ -33,7 +38,11 @@ async def list_reservations(
     )
 
 
-@router.get("/notifications", response_model=list[CRMNotification])
+@router.get(
+    "/notifications",
+    response_model=list[CRMNotification],
+    dependencies=[Depends(verify_api_key)],
+)
 async def list_crm_notifications(
     restaurant_id: str = "default_trattoria",
     unread_only: bool = False,
@@ -47,7 +56,10 @@ async def list_crm_notifications(
     )
 
 
-@router.post("/notifications/{notification_id}/read")
+@router.post(
+    "/notifications/{notification_id}/read",
+    dependencies=[Depends(verify_api_key)],
+)
 async def mark_notification_read(notification_id: str):
     repo = get_notification_repository()
     success = await repo.mark_as_read(notification_id)

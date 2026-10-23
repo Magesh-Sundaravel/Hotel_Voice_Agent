@@ -3,6 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from src.api.middleware.auth import verify_api_key
 from src.models.hotel_booking import (
     AvailableCategoryOption,
     CreateRoomBookingRequest,
@@ -23,7 +24,11 @@ from src.repositories import (
 from src.services.guest_crm_service import GuestCRMService
 from src.services.hotel_booking_service import HotelBookingService
 
-router = APIRouter(prefix="/api", tags=["Sina Hotel Rooms & Bookings"])
+router = APIRouter(
+    prefix="/api",
+    tags=["Sina Hotel Rooms & Bookings"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 def get_hotel_booking_service(request: Request) -> HotelBookingService:

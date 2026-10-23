@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from src.api.middleware.auth import verify_api_key
 from src.models import (
     CallerCRMContext,
     CityRecommendationItem,
@@ -13,7 +14,11 @@ from src.models import (
 from src.repositories import get_guest_crm_repository, get_notification_repository
 from src.services.guest_crm_service import GuestCRMService
 
-router = APIRouter(prefix="/api/crm", tags=["Sina Hotels CRM"])
+router = APIRouter(
+    prefix="/api/crm",
+    tags=["Sina Hotels CRM"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 def get_guest_crm_service(request: Request) -> GuestCRMService:

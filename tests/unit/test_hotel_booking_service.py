@@ -119,3 +119,35 @@ async def test_cancel_booking_success(hotel_booking_service):
     )
     assert cancel_res.success is True
     assert cancel_res.booking.status == RoomBookingStatus.CANCELLED
+
+
+@pytest.mark.asyncio
+async def test_create_booking_reference_code_collision_resolution(hotel_booking_service, monkeypatch):
+    real_get_by_ref = hotel_booking_service.room_repo.get_booking_by_ref
+    first_call = True
+
+    async def mock_get_by_ref(ref_code: str):
+        nonlocal first_call
+        if first_call:
+            first_call = False
+            # Simulate existing booking collision on the first generated code
+            return object()
+        return await real_get_by_ref(ref_code)
+
+    monkeypatch.setattr(hotel_booking_service.room_repo, "get_booking_by_ref", mock_get_by_ref)
+
+    d_in = date.today() + timedelta(days=25)
+    d_out = date.today() + timedelta(days=27)
+    create_res = await hotel_booking_service.create_booking(
+        CreateRoomBookingRequest(
+            guest_name="Marco Mengoni",
+            guest_phone="+39 339 1234567",
+            category=RoomCategory.SUPERIOR,
+            check_in_date=d_in,
+            check_out_date=d_out,
+            guests_count=1,
+        )
+    )
+    assert create_res.success is True
+    assert create_res.booking.reference_code.startswith("SINA-")
+    assert first_call is False  # Verify collision retry was triggered

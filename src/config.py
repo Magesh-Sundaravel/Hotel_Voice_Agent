@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     PORT: int = 8000
     PUBLIC_URL: str = ""
+    CORS_ORIGINS: str = "http://localhost:3000"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        if not self.CORS_ORIGINS:
+            return ["http://localhost:3000"]
+        return [
+            origin.strip()
+            for origin in self.CORS_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
     # Twilio settings
     TWILIO_ACCOUNT_SID: str = ""
@@ -59,6 +70,10 @@ class Settings(BaseSettings):
     # Owner notification settings
     OWNER_EMAIL: str = ""
     OWNER_PHONE: str = ""
+
+    # API Authentication & Webhook Security
+    API_KEY: str = ""
+    TWILIO_VALIDATE_SIGNATURE: bool = False
 
 
 settings = Settings()

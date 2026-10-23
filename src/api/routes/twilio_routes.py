@@ -1,8 +1,9 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket
 from pydantic import BaseModel, Field
 
+from src.api.middleware.auth import verify_api_key, verify_twilio_signature
 from src.config import settings
 from src.integrations.twilio_service import TwilioService
 from src.voice.agent import VoiceAgent
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/api/twilio", tags=["Twilio Voice Integration"])
 twilio_service = TwilioService()
 
 
-@router.post("/incoming-call")
+@router.post("/incoming-call", dependencies=[Depends(verify_twilio_signature)])
 async def handle_incoming_call(request: Request):
     """Twilio Inbound Voice Webhook: returns TwiML to start bi-directional media stream."""
     form_data = await request.form()
@@ -81,7 +82,7 @@ class OutboundCallRequest(BaseModel):
     )
 
 
-@router.post("/call")
+@router.post("/call", dependencies=[Depends(verify_api_key)])
 async def trigger_outbound_call(payload: OutboundCallRequest):
     """Triggers an outbound voice call to the guest via Twilio."""
     try:
@@ -97,7 +98,7 @@ async def trigger_outbound_call(payload: OutboundCallRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/status")
+@router.post("/status", dependencies=[Depends(verify_twilio_signature)])
 async def handle_call_status(request: Request):
     """Handles Twilio Call Status events (completed, no-answer, failed)."""
     form_data = await request.form()

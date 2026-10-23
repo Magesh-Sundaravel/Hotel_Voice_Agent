@@ -154,7 +154,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #4: Add API Authentication
+### Fix #4: Add API Authentication ✅ [COMPLETED]
 
 **Files to create:**
 - `src/api/middleware/auth.py` (new)
@@ -175,7 +175,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #5: Lock Down CORS
+### Fix #5: Lock Down CORS ✅ [COMPLETED]
 
 **File to modify:**
 - `src/api/main.py`
@@ -190,7 +190,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #6: Fix Hotel Booking Reference Code Collisions
+### Fix #6: Fix Hotel Booking Reference Code Collisions ✅ [COMPLETED]
 
 **File to modify:**
 - `src/services/hotel_booking_service.py`

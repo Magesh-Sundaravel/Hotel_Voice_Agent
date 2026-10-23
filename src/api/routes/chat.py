@@ -1,6 +1,7 @@
 """Chat route supporting real-time web chat with native VoiceAgent.
 
 Maintains multi-turn sessions in SessionStore without LangGraph or Postgres checkpointer.
+Caller-facing endpoint: intentionally unauthenticated.
 """
 
 from __future__ import annotations
