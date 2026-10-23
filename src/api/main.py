@@ -10,6 +10,7 @@ from src.api.routes.chat import router as chat_router
 from src.api.routes.crm import router as crm_router
 from src.api.routes.reservations import router as reservations_router
 from src.api.routes.room_bookings import router as room_bookings_router
+from src.api.routes.twilio_routes import router as twilio_router
 from src.config import settings
 
 
@@ -39,6 +40,7 @@ app.include_router(room_bookings_router)
 app.include_router(crm_router)
 app.include_router(reservations_router)
 app.include_router(chat_router)
+app.include_router(twilio_router)
 
 
 @app.get("/health")

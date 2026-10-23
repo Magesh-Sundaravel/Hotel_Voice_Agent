@@ -2,6 +2,8 @@ import random
 import uuid
 from datetime import UTC, date, datetime
 
+from src.integrations.email_service import EmailService
+from src.integrations.twilio_service import TwilioService
 from src.models.crm import TravelPersona
 from src.models.hotel_booking import (
     ROOM_CATEGORY_DETAILS,
@@ -27,11 +29,15 @@ class HotelBookingService:
         room_repo: BaseHotelRoomRepository,
         notification_repo: BaseNotificationRepository,
         guest_crm_service: GuestCRMService | None = None,
+        twilio_service: TwilioService | None = None,
+        email_service: EmailService | None = None,
         hotel_id: str = "sina_bernini_bristol",
     ):
         self.room_repo = room_repo
         self.notification_repo = notification_repo
         self.guest_crm_service = guest_crm_service
+        self.twilio_service = twilio_service
+        self.email_service = email_service
         self.hotel_id = hotel_id
 
     async def check_availability(
@@ -219,14 +225,46 @@ class HotelBookingService:
         )
         await self.notification_repo.add_notification(notif)
 
+        cat_name = ROOM_CATEGORY_DETAILS[request.category]["name_it"]
+
+        # Dispatch automated SMS confirmation if Twilio service is present
+        if self.twilio_service and saved_booking.guest_phone:
+            try:
+                await self.twilio_service.send_booking_confirmation_sms(
+                    to_phone=saved_booking.guest_phone,
+                    guest_name=saved_booking.guest_name,
+                    reference_code=ref_code,
+                    category=cat_name,
+                    check_in_date=request.check_in_date.isoformat(),
+                    check_out_date=request.check_out_date.isoformat(),
+                )
+            except Exception:
+                pass
+
+        # Dispatch automated Email confirmation if email was captured
+        if self.email_service and saved_booking.guest_email:
+            try:
+                await self.email_service.send_room_booking_confirmation(
+                    to_email=saved_booking.guest_email,
+                    guest_name=saved_booking.guest_name,
+                    reference_code=ref_code,
+                    room_category=cat_name,
+                    check_in_date=request.check_in_date.isoformat(),
+                    check_out_date=request.check_out_date.isoformat(),
+                    guests_count=request.guests_count,
+                    total_price=int(total_price),
+                    room_number=assigned_room.room_number,
+                    special_requests=request.special_requests,
+                )
+            except Exception:
+                pass
+
         # Sync to Guest CRM if service provided
         if self.guest_crm_service:
             await self.guest_crm_service.save_guest_preference(
                 phone=saved_booking.guest_phone,
-                special_note=f"Prenotazione {ref_code}: camera {assigned_room.room_number} {ROOM_CATEGORY_DETAILS[request.category]['name_it']}.",
+                special_note=f"Prenotazione {ref_code}: camera {assigned_room.room_number} {cat_name}.",
             )
-
-        cat_name = ROOM_CATEGORY_DETAILS[request.category]["name_it"]
         success_msg = (
             f"La Sua prenotazione è confermata con codice {ref_code}! "
             f"Abbiamo riservato la {cat_name} (camera {assigned_room.room_number}) "

@@ -9,6 +9,8 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from src.agent.prompts import format_date_italian, get_hotel_system_prompt
 from src.agent.state import AgentState
 from src.config import settings
+from src.integrations.email_service import EmailService
+from src.integrations.twilio_service import TwilioService
 from src.repositories import (
     get_booking_repository,
     get_guest_crm_repository,
@@ -23,6 +25,7 @@ from src.services.hotel_booking_service import HotelBookingService
 from src.services.notification_service import NotificationService
 from src.services.restaurant_service import RestaurantService
 from src.tools.booking_tools import build_tools
+from src.tools.communication_tools import build_communication_tools
 from src.tools.crm_tools import build_crm_tools
 from src.tools.hotel_room_tools import build_hotel_room_tools
 
@@ -39,6 +42,8 @@ def create_agent_graph(
     booking_service: BookingService | None = None,
     restaurant_service: RestaurantService | None = None,
     notification_service: NotificationService | None = None,
+    email_service: EmailService | None = None,
+    twilio_service: TwilioService | None = None,
     checkpointer: Any = None,
 ):
     # Repositories setup
@@ -51,6 +56,9 @@ def create_agent_graph(
     effective_hotel_id = hotel_id or restaurant_id or "sina_bernini_bristol"
     effective_hotel_name = hotel_name or restaurant_name or "Sina Bernini Bristol"
 
+    e_svc = email_service or EmailService()
+    t_svc = twilio_service or TwilioService()
+
     crm_svc = guest_crm_service or GuestCRMService(
         crm_repo=guest_crm_repo,
         notification_repo=notification_repo,
@@ -61,11 +69,17 @@ def create_agent_graph(
         room_repo=hotel_room_repo,
         notification_repo=notification_repo,
         guest_crm_service=crm_svc,
+        twilio_service=t_svc,
+        email_service=e_svc,
         hotel_id=effective_hotel_id,
     )
 
-    # Core Sina Hotel Room and CRM Tools
-    tools = build_hotel_room_tools(h_booking_svc) + build_crm_tools(crm_svc)
+    # Core Sina Hotel Room, CRM, and Communication Tools
+    tools = (
+        build_hotel_room_tools(h_booking_svc)
+        + build_crm_tools(crm_svc)
+        + build_communication_tools(email_service=e_svc, twilio_service=t_svc)
+    )
 
     # Support legacy restaurant tools if services are passed in
     if availability_service or booking_service:

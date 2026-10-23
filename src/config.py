@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,30 @@ class Settings(BaseSettings):
     # Server settings
     ENVIRONMENT: str = "development"
     PORT: int = 8000
+    PUBLIC_URL: str = ""
+
+    # Twilio settings
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE_NUMBER: str = Field(
+        default="",
+        validation_alias=AliasChoices("TWILIO_PHONE_NUMBER", "TWILIO_FROM_NUMBER"),
+    )
+
+    # ElevenLabs settings
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = "Xb7hH8MSUJpSbSDYk0k2"  # Alice (default free & paid supported premade voice)
+    ELEVENLABS_MODEL_ID: str = "eleven_turbo_v2_5"
+
+    # STT Provider ("groq" or "elevenlabs")
+    STT_PROVIDER: str = "groq"
+
+    # Email / SMTP settings
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "prenotazioni@sinahotels.com"
 
 
 settings = Settings()

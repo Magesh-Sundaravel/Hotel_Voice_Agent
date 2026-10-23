@@ -148,6 +148,55 @@ uv run ruff format --check .
 
 ---
 
+## 📞 Real-Time Voice Pipeline (Twilio Media Streams + ElevenLabs)
+
+The system supports live telephone calls using **Twilio Media Streams** with bidirectional WebSockets, **ElevenLabs** for expressive Italian TTS/STT, and deterministic **LangGraph** orchestration:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Caller as 📞 Caller (Guest)
+    participant Twilio as 🌐 Twilio Voice
+    participant WS as ⚡ FastAPI (/api/twilio/stream)
+    participant STT as 🎙️ Speech-to-Text (ElevenLabs/Groq)
+    participant Agent as 🧠 LangGraph Agent
+    participant TTS as 🗣️ ElevenLabs TTS (8kHz µ-law)
+    participant Comm as 📩 SMS & Email Services
+
+    Caller->>Twilio: Inbound call to hotel number
+    Twilio->>WS: POST /api/twilio/incoming-call
+    WS-->>Twilio: TwiML <Connect><Stream url="wss://.../api/twilio/stream"/>
+    Twilio->>WS: WebSocket Connect + start (caller phone)
+    WS->>TTS: Initial Italian welcome greeting
+    TTS-->>Twilio: Stream 8kHz µ-law audio chunks
+    Twilio-->>Caller: Speaks warm luxury welcome
+    
+    Caller->>Twilio: "Vorrei prenotare una Deluxe dal 25 al 28 ottobre..."
+    Twilio->>WS: 8kHz µ-law audio chunks
+    WS->>STT: Transcribe speech in Italian
+    STT-->>WS: Final text transcript
+    WS->>Agent: Run StateGraph with transcript & caller phone
+    Agent->>Agent: Execute tools (availability, room booking, CRM)
+    Agent-->>WS: Confirmation & reference code (SINA-XXXX)
+    
+    par Spoken Response
+        WS->>TTS: Stream response text to 8kHz µ-law
+        TTS-->>Twilio: Stream audio to caller
+    and Automatic Confirmations
+        Agent->>Comm: Send SMS to mobile + Email confirmation
+    end
+```
+
+### Key Voice Features:
+- **Twilio Media Streams**: Raw 8kHz $\mu$-law audio streaming over WebSocket with zero transcoding.
+- **Barge-in Support**: Voice Activity Detection (VAD) detects caller interruptions and dispatches a Twilio `clear` control frame to instantly silence ongoing bot speech.
+- **ElevenLabs Italian Voice**: Ultra-natural luxury Italian tone ("dare del Lei").
+- **Automated Multi-Channel Confirmations**:
+  - `send_booking_confirmation_sms`: Dispatches booking reference (e.g. `SINA-4020`), dates, and room category to the caller's mobile via Twilio REST.
+  - `send_booking_confirmation_email`: Sends a luxury branded HTML confirmation email with check-in/out guidelines and hotel policies.
+
+---
+
 ## 📂 Project Layout
 
 ```text
