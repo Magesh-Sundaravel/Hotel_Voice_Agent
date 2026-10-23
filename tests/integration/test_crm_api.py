@@ -34,6 +34,14 @@ def test_get_caller_context_unknown_caller(client):
     assert data["stage"] == "non_resident"
 
 
+def test_list_guests(client):
+    response = client.get("/api/crm/guests")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 3
+
+
 def test_get_guest_profile(client):
     response = client.get("/api/crm/guests/+393359988776")
     assert response.status_code == 200

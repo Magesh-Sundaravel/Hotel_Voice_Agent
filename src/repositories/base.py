@@ -78,6 +78,10 @@ class BaseNotificationRepository(ABC):
 
 class BaseGuestCRMRepository(ABC):
     @abstractmethod
+    async def get_all_guests(self) -> list[GuestProfile]:
+        pass
+
+    @abstractmethod
     async def get_guest_by_phone(self, phone: str) -> GuestProfile | None:
         pass
 

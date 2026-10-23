@@ -8,7 +8,6 @@ from src.models import (
     ConciergeRequest,
     GuestFeedback,
     GuestProfile,
-    StayStage,
     TravelPersona,
 )
 from src.repositories import get_guest_crm_repository, get_notification_repository
@@ -45,6 +44,14 @@ class SubmitFeedbackBody(BaseModel):
     phone: str
     nps_score: int = Field(ge=1, le=10)
     comments: str | None = None
+
+
+@router.get("/guests", response_model=list[GuestProfile])
+async def list_guests(
+    service: GuestCRMService = Depends(get_guest_crm_service),
+):
+    """Retrieve all guests in the CRM with VIP tiers and preferences."""
+    return await service.crm_repo.get_all_guests()
 
 
 @router.get("/caller-context", response_model=CallerCRMContext)

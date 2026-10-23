@@ -8,11 +8,11 @@ import {
   BellRing, 
   RefreshCw, 
   Plus, 
-  Search,
-  Clock,
-  Sparkles,
+  Sun,
+  Moon,
   TrendingUp,
-  ShieldAlert
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
@@ -33,8 +33,27 @@ export default function App() {
   const [stats, setStats] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
+
+  // Theme Management (Light by default for clean modern feel)
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('sina_pms_theme') || 'light';
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('sina_pms_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   // Modal & Drawer states
   const [earlyDepModal, setEarlyDepModal] = useState({ isOpen: false, booking: null });
@@ -42,6 +61,7 @@ export default function App() {
   const [selectedBookingForDrawer, setSelectedBookingForDrawer] = useState(null);
 
   const fetchData = async () => {
+    setIsRefreshing(true);
     try {
       const [roomsRes, bookingsRes, statsRes, notifsRes] = await Promise.all([
         fetch(`${API_BASE}/rooms`),
@@ -59,6 +79,7 @@ export default function App() {
       console.error('Error fetching PMS data:', err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -122,7 +143,7 @@ export default function App() {
   const unreadAlertsCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans antialiased selection:bg-amber-500/30 selection:text-amber-200">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex font-sans antialiased selection:bg-amber-100 dark:selection:bg-amber-900/50 selection:text-amber-900 dark:selection:text-amber-100 transition-colors">
       {/* SIDEBAR NAVIGATION */}
       <Sidebar 
         activeTab={activeTab} 
@@ -130,39 +151,53 @@ export default function App() {
         unreadAlertsCount={unreadAlertsCount} 
       />
 
-      {/* MAIN PMS DESK AREA */}
+      {/* MAIN DESK AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* TOP STATUS BAR */}
-        <header className="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-bold text-slate-200 tracking-wide font-serif-luxury hidden sm:block">
-              SINA BERNINI BRISTOL — FRONT DESK PMS
+        <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between gap-4 transition-colors">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight hidden sm:block">
+              Sina Bernini Bristol — Front Desk & Operations
             </h1>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
-              Reception Console
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+              Reception Desk
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {/* Live Sync Timestamp */}
-            <div className="hidden md:flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <div className="hidden md:flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Sync: {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
             </div>
 
             {/* Manual Refresh */}
             <button
               onClick={fetchData}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/60 cursor-pointer"
+              disabled={isRefreshing}
+              className="p-2 rounded-lg text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer"
               title="Aggiorna Dati PMS"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-zinc-800 dark:text-zinc-200' : ''}`} />
+            </button>
+
+            {/* Theme Toggle (Light / Dark) */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer"
+              title={theme === 'light' ? 'Passa alla modalità scura' : 'Passa alla modalità chiara'}
+            >
+              {theme === 'light' ? (
+                <Moon className="w-3.5 h-3.5" />
+              ) : (
+                <Sun className="w-3.5 h-3.5" />
+              )}
             </button>
 
             {/* Quick New Booking Button */}
             <button
               onClick={() => setNewBookingModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-950/40 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium text-xs shadow-xs transition-colors cursor-pointer ml-1"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Nuova Prenotazione</span>
@@ -171,55 +206,55 @@ export default function App() {
         </header>
 
         {/* PMS DASHBOARD CONTENT */}
-        <main className="p-6 max-w-7xl w-full mx-auto space-y-6 flex-1">
+        <main className="p-6 max-w-7xl w-full mx-auto space-y-5 flex-1">
           {/* HIGH-LEVEL KPI EXECUTIVE METRICS */}
           {stats && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
               {/* TOTAL ROOMS */}
-              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-sm">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  Totale Camere Hotel
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 p-4 rounded-xl shadow-xs">
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">
+                  Totale Camere
                 </span>
-                <div className="text-2xl font-bold text-slate-100 font-serif-luxury mt-1 flex items-baseline justify-between">
+                <div className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mt-1 flex items-baseline justify-between">
                   <span>{stats.total_rooms}</span>
-                  <span className="text-[11px] text-amber-400 font-normal font-sans">9 Suite & Camere</span>
+                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">9 Suite & Camere</span>
                 </div>
               </div>
 
               {/* OCCUPANCY */}
-              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-sm">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 p-4 rounded-xl shadow-xs">
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">
                   Ospiti In-House
                 </span>
-                <div className="text-2xl font-bold text-sky-400 font-serif-luxury mt-1 flex items-baseline justify-between">
+                <div className="text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400 mt-1 flex items-baseline justify-between">
                   <span>{stats.in_house_guests_count}</span>
-                  <span className="text-[11px] text-sky-300 font-normal font-sans">
-                    Occupazione {stats.occupancy_rate_percentage}%
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    {stats.occupancy_rate_percentage}% Occupazione
                   </span>
                 </div>
               </div>
 
               {/* EARLY DEPARTURES */}
-              <div className="bg-slate-900/80 border border-amber-800/40 p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/20 shadow-sm">
-                <span className="text-[11px] font-semibold text-amber-300 uppercase tracking-wider flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 text-amber-400" /> Partenze Anticipate
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 p-4 rounded-xl shadow-xs">
+                <span className="text-[11px] font-medium text-amber-800 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Partenze Anticipate
                 </span>
-                <div className="text-2xl font-bold text-amber-300 font-serif-luxury mt-1 flex items-baseline justify-between">
+                <div className="text-2xl font-bold tracking-tight text-amber-700 dark:text-amber-300 mt-1 flex items-baseline justify-between">
                   <span>{stats.early_departures_count}</span>
-                  <span className="text-[11px] text-amber-400/90 font-normal font-sans">
+                  <span className="text-xs font-normal text-amber-700/80 dark:text-amber-400/80">
                     Camere Rilasciate
                   </span>
                 </div>
               </div>
 
               {/* TODAY'S FLOW */}
-              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-sm">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 p-4 rounded-xl shadow-xs">
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">
                   Movimenti Oggi
                 </span>
-                <div className="text-2xl font-bold text-emerald-400 font-serif-luxury mt-1 flex items-baseline justify-between">
+                <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 mt-1 flex items-baseline justify-between">
                   <span>{stats.arrivals_today_count} in / {stats.departures_today_count} out</span>
-                  <span className="text-[11px] text-slate-400 font-normal font-sans">Oggi</span>
+                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">Oggi</span>
                 </div>
               </div>
             </div>

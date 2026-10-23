@@ -337,6 +337,9 @@ class InMemoryGuestCRMRepository(BaseGuestCRMRepository):
         self._concierge_requests: list[ConciergeRequest] = []
         self._feedback_list: list[GuestFeedback] = []
 
+    async def get_all_guests(self) -> list[GuestProfile]:
+        return [g.model_copy(deep=True) for g in self._guests.values()]
+
     async def get_guest_by_phone(self, phone: str) -> GuestProfile | None:
         target = normalize_phone_number(phone)
         for guest in self._guests.values():

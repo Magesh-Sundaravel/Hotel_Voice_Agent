@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, X, BedDouble, Calendar, User, Phone, Check } from 'lucide-react';
 
 export default function NewBookingModal({ isOpen, onClose, onSubmit }) {
@@ -14,6 +14,35 @@ export default function NewBookingModal({ isOpen, onClose, onSubmit }) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Set default dates when opening
+  useEffect(() => {
+    if (isOpen && !formData.check_in_date) {
+      const today = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(today.getDate() + 2);
+      
+      const pad = (n) => n.toString().padStart(2, '0');
+      const inStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      const outStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+      
+      setFormData(prev => ({
+        ...prev,
+        check_in_date: inStr,
+        check_out_date: outStr
+      }));
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -23,35 +52,42 @@ export default function NewBookingModal({ isOpen, onClose, onSubmit }) {
     setIsSubmitting(false);
   };
 
+  const categoryPrices = {
+    superior: 250,
+    deluxe: 350,
+    junior_suite: 480,
+    panoramic_suite: 750
+  };
+
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+    <div className="fixed inset-0 bg-zinc-950/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl max-w-lg w-full p-5 shadow-xl relative animate-in fade-in zoom-in-95 duration-150">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="absolute top-4 right-4 p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
-            <Plus className="w-5 h-5" />
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
+            <Plus className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               Nuova Prenotazione — Front Desk
             </h3>
-            <p className="text-xs text-slate-400">
-              Inserimento manuale soggiorno per walk-in o contatto diretto.
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Inserimento manuale per clienti diretti o walk-in.
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                Nome & Cognome Ospite *
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+                Nome & Cognome *
               </label>
               <input
                 type="text"
@@ -59,27 +95,27 @@ export default function NewBookingModal({ isOpen, onClose, onSubmit }) {
                 value={formData.guest_name}
                 onChange={(e) => setFormData({ ...formData, guest_name: e.target.value })}
                 placeholder="Es. Mario Rossi"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
                 Numero di Telefono *
               </label>
               <input
-                type="text"
+                type="tel"
                 required
                 value={formData.guest_phone}
                 onChange={(e) => setFormData({ ...formData, guest_phone: e.target.value })}
                 placeholder="+39 333 1234567"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
                 Data Check-in *
               </label>
               <input
@@ -87,11 +123,11 @@ export default function NewBookingModal({ isOpen, onClose, onSubmit }) {
                 required
                 value={formData.check_in_date}
                 onChange={(e) => setFormData({ ...formData, check_in_date: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
                 Data Check-out *
               </label>
               <input
@@ -99,29 +135,29 @@ export default function NewBookingModal({ isOpen, onClose, onSubmit }) {
                 required
                 value={formData.check_out_date}
                 onChange={(e) => setFormData({ ...formData, check_out_date: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
                 Tipologia Camera *
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
               >
-                <option value="superior">Camera Superior (€250/notte)</option>
-                <option value="deluxe">Camera Deluxe Vista Città (€350/notte)</option>
-                <option value="junior_suite">Junior Suite con Balcone (€480/notte)</option>
-                <option value="panoramic_suite">Suite Panoramica Barberini (€750/notte)</option>
+                <option value="superior">Superior Room (€250/n)</option>
+                <option value="deluxe">Deluxe Room (€350/n)</option>
+                <option value="junior_suite">Junior Suite Balcone (€480/n)</option>
+                <option value="panoramic_suite">Suite Panoramica Barberini (€750/n)</option>
               </select>
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
                 Ospiti *
               </label>
               <input
@@ -130,37 +166,37 @@ export default function NewBookingModal({ isOpen, onClose, onSubmit }) {
                 max="4"
                 value={formData.guests_count}
                 onChange={(e) => setFormData({ ...formData, guests_count: parseInt(e.target.value) || 1 })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
               Note, Richieste Speciali & Allergie
             </label>
             <input
               type="text"
               value={formData.special_requests}
               onChange={(e) => setFormData({ ...formData, special_requests: e.target.value })}
-              placeholder="Es. Letto matrimoniale, intolleranza lattosio, arrivo tardivo..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+              placeholder="Es. Letto matrimoniale, celiachia, transfer NCC..."
+              className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
             >
               Annulla
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-950/40 transition-all cursor-pointer disabled:opacity-50"
+              className="px-4 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
             >
               {isSubmitting ? 'Salvataggio...' : 'Conferma Prenotazione'}
             </button>

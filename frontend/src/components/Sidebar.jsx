@@ -6,68 +6,69 @@ import {
   Users, 
   BellRing, 
   MapPin, 
+  PhoneCall,
   Sparkles,
-  PhoneCall
+  ExternalLink
 } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, unreadAlertsCount = 0 }) {
   const menuItems = [
     { 
       id: 'room_rack', 
-      label: 'Room Rack & Status', 
+      label: 'Room Rack', 
       subtitle: 'Occupazione e stato piani',
       icon: BedDouble 
     },
     { 
       id: 'reservations', 
-      label: 'Reservations & Stays', 
-      subtitle: 'Registro soggiorni e partenze',
+      label: 'Prenotazioni', 
+      subtitle: 'Registro soggiorni e folios',
       icon: CalendarCheck 
     },
     { 
       id: 'guest_crm', 
-      label: 'Guest 360 Intelligence', 
-      subtitle: 'Profili VIP, diete e preferenze',
+      label: 'Guest 360 CRM', 
+      subtitle: 'Dossier VIP e diete',
       icon: Users 
     },
     { 
       id: 'operations_alerts', 
-      label: 'Operations & Kitchen Alerts', 
-      subtitle: 'Notifiche in tempo reale da centralino',
+      label: 'Allarmi & Centralino', 
+      subtitle: 'Notifiche in tempo reale',
       icon: BellRing, 
       badge: unreadAlertsCount 
     },
   ];
 
   return (
-    <aside className="w-72 bg-slate-900/95 border-r border-slate-800 flex flex-col justify-between shrink-0 select-none">
+    <aside className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between shrink-0 select-none transition-colors">
       <div>
-        {/* HOTEL LOGO & IDENTITY */}
-        <div className="p-6 border-b border-slate-800/80">
+        {/* BRAND IDENTITY */}
+        <div className="p-5 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-950/40 border border-amber-300/30">
-              <Building2 className="w-6 h-6 text-slate-950" />
+            <div className="w-9 h-9 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 flex items-center justify-center font-bold text-sm tracking-wider shadow-sm">
+              SB
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-serif-luxury text-lg font-bold tracking-wider text-amber-200">
-                  SINA HOTELS
-                </span>
+            <div className="min-w-0">
+              <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
+                Sina Bernini Bristol
               </div>
-              <p className="text-[11px] text-amber-400/90 font-medium">Bernini Bristol • 5★ Lusso</p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal">
+                5★ Lusso • Roma
+              </p>
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-400">
-            <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="truncate">Piazza Barberini 23, Roma</span>
+          <div className="mt-3 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <span className="truncate">Piazza Barberini 23</span>
           </div>
         </div>
 
-        {/* PMS SYSTEM LABEL */}
-        <div className="px-6 pt-5 pb-2">
-          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-            Front Desk & Property Management
+        {/* SECTION TITLE */}
+        <div className="px-5 pt-4 pb-2">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+            Gestione Reception
           </span>
         </div>
 
@@ -80,24 +81,22 @@ export default function Sidebar({ activeTab, setActiveTab, unreadAlertsCount = 0
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors cursor-pointer text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 ${
                   isActive
-                    ? 'bg-amber-500/15 text-amber-200 border border-amber-500/40 shadow-sm shadow-amber-950/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+                    ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white font-semibold shadow-xs'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/60'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`p-1.5 rounded-lg ${isActive ? 'bg-amber-400/20 text-amber-300' : 'text-slate-400'}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-200">{item.label}</div>
-                    <div className="text-[10px] text-slate-400 font-normal">{item.subtitle}</div>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`} />
+                  <div className="truncate">
+                    <div>{item.label}</div>
+                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">{item.subtitle}</div>
                   </div>
                 </div>
 
                 {item.badge > 0 && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white shadow-sm">
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500 text-white leading-none ml-2 shrink-0">
                     {item.badge}
                   </span>
                 )}
@@ -108,20 +107,22 @@ export default function Sidebar({ activeTab, setActiveTab, unreadAlertsCount = 0
       </div>
 
       {/* FOOTER SYSTEM STATUS */}
-      <div className="p-4 m-3 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5 text-slate-300 font-medium text-[11px]">
-            <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Voice Receptionist</span>
+      <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/70 border border-zinc-200/80 dark:border-zinc-800/80 text-xs">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5 font-medium text-[11px] text-zinc-800 dark:text-zinc-200">
+              <PhoneCall className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Voice Receptionist</span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Attivo
+            </span>
           </div>
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Online
-          </span>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal">
+            L'assistente telefonico risponde ai clienti in lingua italiana e aggiorna il PMS.
+          </p>
         </div>
-        <p className="text-[10px] text-slate-400 leading-relaxed">
-          I clienti telefonano al centralino esterno. Prenotazioni e richieste compaiono qui automaticamente.
-        </p>
       </div>
     </aside>
   );
