@@ -300,7 +300,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #12: Add LLM Eval Tests
+### Fix #12: Add LLM Eval Tests ✅ [COMPLETED]
 
 **Files to create:**
 - `tests/evals/__init__.py` (new)
@@ -328,7 +328,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #13: Upgrade VAD
+### Fix #13: Upgrade VAD ✅ [COMPLETED]
 
 **Files to modify:**
 - `src/voice/pipeline.py`
@@ -345,7 +345,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #14: Update AGENTS.md
+### Fix #14: Update AGENTS.md ✅ [COMPLETED]
 
 **File to modify:**
 - `AGENTS.md`

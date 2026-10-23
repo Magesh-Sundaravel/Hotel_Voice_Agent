@@ -73,5 +73,10 @@ class Settings(BaseSettings):
     API_KEY: str = ""
     TWILIO_VALIDATE_SIGNATURE: bool = False
 
+    # Voice Activity Detection (VAD) settings
+    VAD_PROVIDER: str = "webrtc"  # "webrtc" | "rms"
+    VAD_MODE: int = 2  # 0 (least aggressive) to 3 (most aggressive)
+    VAD_RMS_PREFILTER_THRESHOLD: float = 250.0  # Fast RMS pre-filter threshold
+
 
 settings = Settings()

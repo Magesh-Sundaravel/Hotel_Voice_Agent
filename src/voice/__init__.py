@@ -9,6 +9,7 @@ from src.voice.pipeline import TwilioMediaStreamPipeline
 from src.voice.session import CallSession, SessionStore
 from src.voice.stt import SpeechToTextService
 from src.voice.tts import ElevenLabsTTSService
+from src.voice.vad import VoiceActivityDetector
 
 __all__ = [
     "AgentTurnResult",
@@ -17,6 +18,7 @@ __all__ = [
     "SessionStore",
     "SpeechToTextService",
     "TwilioMediaStreamPipeline",
+    "VoiceActivityDetector",
     "VoiceAgent",
     "calculate_rms",
     "mulaw_to_pcm",

@@ -596,6 +596,110 @@ RESTAURANT_TOOL_SCHEMAS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "modify_reservation",
+            "description": (
+                "Modifica una prenotazione tavolo esistente (data, orario, numero coperti o note). "
+                "Richiede il telefono del cliente per verifica dell'identità e, se noto, il codice prenotazione (es. BV-1234)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_phone": {
+                        "type": "string",
+                        "description": "Numero di telefono del cliente per verifica identità",
+                    },
+                    "reference_code": {
+                        "type": "string",
+                        "description": "Codice prenotazione (es. 'BV-1234')",
+                    },
+                    "customer_name": {
+                        "type": "string",
+                        "description": "Nome o cognome del cliente per verifica",
+                    },
+                    "new_date": {
+                        "type": "string",
+                        "description": "Nuova data richiesta in formato YYYY-MM-DD",
+                    },
+                    "new_time": {
+                        "type": "string",
+                        "description": "Nuovo orario richiesto in formato HH:MM",
+                    },
+                    "new_party_size": {
+                        "type": "integer",
+                        "description": "Nuovo numero di coperti/persone",
+                    },
+                    "new_dietary_notes": {
+                        "type": "string",
+                        "description": "Nuove note alimentari, allergie o intolleranze",
+                    },
+                },
+                "required": ["customer_phone"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "cancel_reservation",
+            "description": (
+                "Cancella una prenotazione tavolo esistente su richiesta del cliente. "
+                "Richiede il telefono del cliente per verifica identità e, se disponibile, il codice prenotazione o cognome."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_phone": {
+                        "type": "string",
+                        "description": "Numero di telefono del cliente per verifica",
+                    },
+                    "reference_code": {
+                        "type": "string",
+                        "description": "Codice prenotazione (es. 'BV-1234')",
+                    },
+                    "customer_name": {
+                        "type": "string",
+                        "description": "Nome o cognome del cliente per verifica",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Motivo espresso dall'ospite per la cancellazione",
+                    },
+                },
+                "required": ["customer_phone"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "leave_message_for_owner",
+            "description": (
+                "Invia una notifica al titolare o responsabile del ristorante con un messaggio del cliente "
+                "(richieste di parlare con un umano/responsabile, gruppi oltre 10 persone, eventi speciali)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "caller_name": {
+                        "type": "string",
+                        "description": "Nome e cognome del chiamante",
+                    },
+                    "caller_phone": {
+                        "type": "string",
+                        "description": "Numero di telefono del chiamante",
+                    },
+                    "message_body": {
+                        "type": "string",
+                        "description": "Contenuto del messaggio o dettagli della richiesta per il titolare",
+                    },
+                },
+                "required": ["caller_name", "caller_phone", "message_body"],
+            },
+        },
+    },
 ]
 
 
@@ -1191,18 +1295,101 @@ async def execute_tool_call(
     # 17. Legacy Trattoria FAQ
     if tool_name == "get_restaurant_faq_or_hours":
         query = str(args.get("query", "")).lower()
+        if restaurant_service:
+            if "orari" in query or "apert" in query or "chius" in query:
+                return await restaurant_service.get_opening_hours_text(session.hotel_id)
+            ans = await restaurant_service.answer_faq(session.hotel_id, query)
+            if ans:
+                return ans
+            return f"Informazione non disponibile nelle FAQ per la richiesta: '{query}'."
         if "parcheggio" in query:
             return "Garage Garibaldi a 50 metri dal ristorante, convenzionato."
         if "orari" in query:
             return "Aperti tutti i giorni dalle 12:30 alle 15:00 e dalle 19:30 alle 23:30."
         return "Siamo sempre aperti a pranzo e cena con cucina tipica romana."
 
+    # 18. Legacy Trattoria Modify Reservation
+    if tool_name == "modify_reservation":
+        if not booking_service:
+            return json.dumps({"error": "BookingService non configurato."})
+        c_phone = str(args.get("customer_phone") or session.caller_phone).strip()
+        ref = args.get("reference_code")
+        c_name = args.get("customer_name") or session.caller_name
+        new_d_str = args.get("new_date")
+        new_d = None
+        if new_d_str:
+            try:
+                new_d = date.fromisoformat(str(new_d_str).strip())
+            except ValueError:
+                return json.dumps({"success": False, "message_it": "Data non valida."})
+        from src.models import ModifyReservationRequest
+
+        req_mod = ModifyReservationRequest(
+            reference_code=ref or "",
+            customer_phone=c_phone,
+            customer_name=c_name,
+            new_date=new_d,
+            new_time=args.get("new_time"),
+            new_party_size=args.get("new_party_size"),
+            new_dietary_notes=args.get("new_dietary_notes"),
+        )
+        res_mod = await booking_service.modify_booking(session.hotel_id, req_mod)
+        return res_mod.message_it
+
+    # 19. Legacy Trattoria Cancel Reservation
+    if tool_name == "cancel_reservation":
+        if not booking_service:
+            return json.dumps({"error": "BookingService non configurato."})
+        c_phone = str(args.get("customer_phone") or session.caller_phone).strip()
+        ref = args.get("reference_code")
+        c_name = args.get("customer_name") or session.caller_name
+        from src.models import CancelReservationRequest
+
+        req_cancel = CancelReservationRequest(
+            reference_code=ref or "",
+            customer_phone=c_phone,
+            customer_name=c_name,
+            reason=args.get("reason"),
+        )
+        res_cancel = await booking_service.cancel_booking(session.hotel_id, req_cancel)
+        return res_cancel.message_it
+
+    # 20. Legacy Trattoria Leave Message for Owner
+    if tool_name == "leave_message_for_owner":
+        if not notification_service:
+            return json.dumps({"error": "NotificationService non configurato."})
+        c_name = str(args.get("caller_name") or session.caller_name or "Cliente").strip()
+        c_phone = str(args.get("caller_phone") or session.caller_phone).strip()
+        body = str(args.get("message_body") or args.get("message") or "").strip()
+        await notification_service.notify_owner_message(
+            restaurant_id=session.hotel_id,
+            caller_name=c_name,
+            caller_phone=c_phone,
+            message_body=body,
+        )
+        return (
+            f"Messaggio registrato con successo nel sistema del ristorante per il titolare a nome {c_name}. "
+            "Il nostro staff La ricontatterà al più presto."
+        )
+
     logger.warning("Unrecognized tool name requested by model: %s", tool_name)
     return json.dumps({"error": f"Tool '{tool_name}' non riconosciuto."}, ensure_ascii=False)
 
 
-def get_all_tool_schemas(include_restaurant: bool = True) -> list[dict[str, Any]]:
+def get_all_tool_schemas(
+    include_restaurant: bool = True,
+    include_hotel: bool = True,
+) -> list[dict[str, Any]]:
     """Returns combined tool schemas for the voice receptionist."""
+    schemas: list[dict[str, Any]] = []
+    if include_hotel:
+        schemas.extend(HOTEL_TOOL_SCHEMAS)
     if include_restaurant:
-        return HOTEL_TOOL_SCHEMAS + RESTAURANT_TOOL_SCHEMAS
-    return HOTEL_TOOL_SCHEMAS
+        schemas.extend(RESTAURANT_TOOL_SCHEMAS)
+    if include_restaurant and not include_hotel:
+        end_call_schema = next(
+            (s for s in HOTEL_TOOL_SCHEMAS if s["function"]["name"] == "end_call"), None
+        )
+        if end_call_schema and end_call_schema not in schemas:
+            schemas.append(end_call_schema)
+    return schemas

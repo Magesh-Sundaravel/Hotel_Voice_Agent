@@ -20,6 +20,7 @@ dependencies = [
     "supabase>=2.33.0",
     "twilio>=9.12.0",
     "uvicorn>=0.54.0",
+    "webrtcvad-wheels>=2.0.14.post1",
 ]
 
 [tool.pytest.ini_options]
@@ -28,6 +29,10 @@ asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning:supabase.*",
 ]
+markers = [
+    "eval: LLM evaluation tests (require GROQ_API_KEY)",
+]
+addopts = "-m 'not eval'"
 
 [tool.ruff]
 target-version = "py312"

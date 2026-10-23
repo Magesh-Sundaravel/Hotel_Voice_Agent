@@ -16,10 +16,11 @@ from typing import Any
 from fastapi import WebSocket
 
 from src.voice.agent import VoiceAgent
-from src.voice.audio_utils import calculate_rms, mulaw_to_pcm
+from src.voice.audio_utils import mulaw_to_pcm
 from src.voice.session import CallSession
 from src.voice.stt import SpeechToTextService
 from src.voice.tts import ElevenLabsTTSService
+from src.voice.vad import VoiceActivityDetector
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class TwilioMediaStreamPipeline:
         agent_graph: Any = None,  # Backward compatibility parameter
         stt_service: SpeechToTextService | None = None,
         tts_service: ElevenLabsTTSService | None = None,
+        vad: VoiceActivityDetector | None = None,
         hotel_id: str = "sina_bernini_bristol",
         hotel_name: str = "Sina Bernini Bristol",
         rms_threshold: float = 700.0,
@@ -43,6 +45,7 @@ class TwilioMediaStreamPipeline:
         self.voice_agent = voice_agent or agent_graph
         self.stt = stt_service or SpeechToTextService()
         self.tts = tts_service or ElevenLabsTTSService()
+        self.vad = vad or VoiceActivityDetector(rms_prefilter_threshold=rms_threshold)
         self.hotel_id = hotel_id
         self.hotel_name = hotel_name
         self.rms_threshold = rms_threshold
@@ -140,20 +143,20 @@ class TwilioMediaStreamPipeline:
     async def _process_inbound_chunk(self, chunk_mulaw: bytes) -> None:
         """Processes 20ms audio chunks from Twilio: VAD, barge-in, buffering."""
         pcm = mulaw_to_pcm(chunk_mulaw)
-        rms = calculate_rms(pcm)
+        is_speech = self.vad.is_speech(pcm)
         now = time.time()
 
-        if rms > self.rms_threshold:
+        if is_speech:
             # Caller is speaking
             self.last_speech_time = now
 
             if not self.is_caller_speaking:
                 self.is_caller_speaking = True
-                logger.debug("Speech started (RMS=%.1f)", rms)
+                logger.debug("Speech started via VAD")
 
             # BARGE-IN: If bot is currently speaking and user interrupts, cancel playback immediately!
             if self.is_bot_speaking:
-                logger.info("Barge-in detected! Silencing bot audio stream.")
+                logger.info("Barge-in detected via VAD! Silencing bot audio stream.")
                 await self._clear_twilio_buffer()
                 if self.current_tts_task and not self.current_tts_task.done():
                     self.current_tts_task.cancel()

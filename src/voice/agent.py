@@ -11,7 +11,11 @@ import logging
 from datetime import date
 from typing import Any
 
-from src.agent.prompts import format_date_italian, get_hotel_system_prompt
+from src.agent.prompts import (
+    format_date_italian,
+    get_hotel_system_prompt,
+    get_restaurant_system_prompt,
+)
 from src.config import settings
 from src.integrations.email_service import EmailService
 from src.integrations.twilio_service import TwilioService
@@ -76,8 +80,12 @@ class VoiceAgent:
         self.notification_service = notification_service
         self.max_tool_hops = max_tool_hops
 
+        is_restaurant_only = bool(
+            (availability_service or booking_service) and not hotel_booking_service
+        )
         self._tools = get_all_tool_schemas(
-            include_restaurant=bool(availability_service or booking_service)
+            include_restaurant=bool(availability_service or booking_service),
+            include_hotel=not is_restaurant_only,
         )
         self._groq_client = None
 
@@ -168,11 +176,24 @@ class VoiceAgent:
 
         # 2. Format dynamic system prompt
         current_date = format_date_italian(date.today())
-        sys_prompt = get_hotel_system_prompt(
-            hotel_name=session.hotel_name or self.hotel_name,
-            current_date=current_date,
-            caller_phone=session.caller_phone or "Non disponibile",
+        is_restaurant = bool(
+            (self.booking_service and not self.hotel_booking_service)
+            or (session.hotel_id and "trattoria" in session.hotel_id.lower())
+            or ("trattoria" in (session.hotel_name or self.hotel_name).lower())
+            or ("ristorante" in (session.hotel_name or self.hotel_name).lower())
         )
+        if is_restaurant:
+            sys_prompt = get_restaurant_system_prompt(
+                restaurant_name=session.hotel_name or self.hotel_name,
+                current_date=current_date,
+                caller_phone=session.caller_phone or "Non disponibile",
+            )
+        else:
+            sys_prompt = get_hotel_system_prompt(
+                hotel_name=session.hotel_name or self.hotel_name,
+                current_date=current_date,
+                caller_phone=session.caller_phone or "Non disponibile",
+            )
 
         executed_tools: list[str] = []
         final_reply = "Certamente."
