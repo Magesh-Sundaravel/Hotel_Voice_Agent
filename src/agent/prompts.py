@@ -1,5 +1,7 @@
 from datetime import date
 
+from src.models.hotel_booking import ROOM_CATEGORY_DETAILS
+
 ITALIAN_WEEKDAYS = {
     0: "Lunedì",
     1: "Martedì",
@@ -15,6 +17,21 @@ def format_date_italian(d: date | None = None) -> str:
     target = d or date.today()
     weekday = ITALIAN_WEEKDAYS.get(target.weekday(), "")
     return f"{target.isoformat()} ({weekday})"
+
+
+def _build_room_rates_section() -> str:
+    lines = ["HOTEL ROOM INVENTORY & RATES:"]
+    for details in ROOM_CATEGORY_DETAILS.values():
+        name = details["name_it"]
+        price = (
+            int(details["price_per_night"])
+            if details["price_per_night"].is_integer()
+            else details["price_per_night"]
+        )
+        max_guests = details["max_guests"]
+        extra = f", {details['features_it']}" if details.get("features_it") else ""
+        lines.append(f"- {name}: €{price} / notte (max {max_guests} ospiti{extra})")
+    return "\n".join(lines)
 
 
 HOTEL_SYSTEM_PROMPT_TEMPLATE = """You are the AI voice receptionist and concierge for {hotel_name}, a 5-star luxury Italian hotel in Rome (Piazza Barberini).
@@ -36,11 +53,7 @@ LANGUAGE & TONE:
     "Buongiorno, sono l'assistente AI di Sina Hotels. Come posso aiutarLa?"
   - If the caller's phone number is recognized via `lookup_caller_crm`, adapt the greeting warmly (e.g. "Buongiorno Signor Rossi! Che piacere risentirla. Come procede il Suo soggiorno in camera 402?").
 
-HOTEL ROOM INVENTORY & RATES:
-- Camera Superior: €250 / notte (max 2 ospiti)
-- Camera Deluxe con Vista Città: €350 / notte (max 2 ospiti)
-- Junior Suite con Balcone: €480 / notte (max 3 ospiti)
-- Suite Panoramica Barberini: €750 / notte (max 4 ospiti, terrazza 360°, idromassaggio)
+{room_rates_section}
 
 CORE POLICIES:
 1. CHECK AVAILABILITY BEFORE CONFIRMING:
@@ -84,9 +97,9 @@ def get_hotel_system_prompt(
         hotel_name=name,
         current_date=c_date,
         caller_phone=caller_phone or "Not available",
+        room_rates_section=_build_room_rates_section(),
     )
 
 
 # Alias for backward compatibility
 get_system_prompt = get_hotel_system_prompt
-

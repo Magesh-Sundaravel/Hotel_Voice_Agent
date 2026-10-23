@@ -1,7 +1,7 @@
 import json
+import logging
 from datetime import date
 
-from src.tools.base import BaseTool
 from pydantic import BaseModel, Field
 
 from src.models.hotel_booking import (
@@ -11,6 +11,9 @@ from src.models.hotel_booking import (
     RoomCategory,
 )
 from src.services.hotel_booking_service import HotelBookingService
+from src.tools.base import BaseTool
+
+logger = logging.getLogger(__name__)
 
 
 class CheckRoomAvailabilityInput(BaseModel):
@@ -51,10 +54,15 @@ class CheckRoomAvailabilityTool(BaseTool):
             d_in = date.fromisoformat(check_in_date.strip())
             d_out = date.fromisoformat(check_out_date.strip())
         except ValueError:
+            logger.warning(
+                "CheckRoomAvailabilityTool: invalid date format (%s, %s)",
+                check_in_date,
+                check_out_date,
+            )
             return json.dumps(
                 {
                     "is_available": False,
-                    "message_it": "Formato data non valido. Usare il formato YYYY-MM-DD (es. 2026-10-24).",
+                    "message_it": "Formato data non valido. Utilizzare YYYY-MM-DD (es. 2026-10-24).",
                 },
                 ensure_ascii=False,
             )
@@ -64,7 +72,17 @@ class CheckRoomAvailabilityTool(BaseTool):
             try:
                 cat_enum = RoomCategory(category.strip().lower())
             except ValueError:
-                pass
+                logger.warning(
+                    "CheckRoomAvailabilityTool: invalid category '%s'",
+                    category,
+                )
+                return json.dumps(
+                    {
+                        "is_available": False,
+                        "message_it": f"Categoria camera '{category}' non valida. Le categorie disponibili sono: superior, deluxe, junior_suite, panoramic_suite.",
+                    },
+                    ensure_ascii=False,
+                )
 
         res = await self.booking_service.check_availability(
             check_in_date=d_in,
@@ -84,12 +102,8 @@ class CreateHotelRoomBookingInput(BaseModel):
     category: str = Field(
         description="Categoria camera scelta: 'superior', 'deluxe', 'junior_suite', 'panoramic_suite'"
     )
-    check_in_date: str = Field(
-        description="Data di arrivo (check-in) in formato YYYY-MM-DD"
-    )
-    check_out_date: str = Field(
-        description="Data di partenza (check-out) in formato YYYY-MM-DD"
-    )
+    check_in_date: str = Field(description="Data di arrivo (check-in) in formato YYYY-MM-DD")
+    check_out_date: str = Field(description="Data di partenza (check-out) in formato YYYY-MM-DD")
     guests_count: int = Field(default=2, description="Numero di ospiti")
     special_requests: str | None = Field(
         default=None,
@@ -124,12 +138,31 @@ class CreateHotelRoomBookingTool(BaseTool):
         try:
             d_in = date.fromisoformat(check_in_date.strip())
             d_out = date.fromisoformat(check_out_date.strip())
-            cat_enum = RoomCategory(category.strip().lower())
-        except (ValueError, KeyError):
+        except ValueError:
+            logger.warning(
+                "CreateHotelRoomBookingTool: invalid date format (%s, %s)",
+                check_in_date,
+                check_out_date,
+            )
             return json.dumps(
                 {
                     "success": False,
-                    "message_it": "Parametri non validi per la prenotazione (verificare date o tipologia camera).",
+                    "message_it": "Formato data non valido. Utilizzare YYYY-MM-DD (es. 2026-10-24).",
+                },
+                ensure_ascii=False,
+            )
+
+        try:
+            cat_enum = RoomCategory(category.strip().lower())
+        except ValueError:
+            logger.warning(
+                "CreateHotelRoomBookingTool: invalid category '%s'",
+                category,
+            )
+            return json.dumps(
+                {
+                    "success": False,
+                    "message_it": f"Categoria camera '{category}' non valida. Le categorie disponibili sono: superior, deluxe, junior_suite, panoramic_suite.",
                 },
                 ensure_ascii=False,
             )
@@ -174,12 +207,8 @@ class ModifyHotelRoomBookingInput(BaseModel):
     new_category: str | None = Field(
         default=None, description="Nuova categoria se richiesta (superior, deluxe, etc.)"
     )
-    new_guests_count: int | None = Field(
-        default=None, description="Nuovo numero di ospiti"
-    )
-    new_special_requests: str | None = Field(
-        default=None, description="Nuove note o richieste"
-    )
+    new_guests_count: int | None = Field(default=None, description="Nuovo numero di ospiti")
+    new_special_requests: str | None = Field(default=None, description="Nuove note o richieste")
 
 
 class ModifyHotelRoomBookingTool(BaseTool):
@@ -201,9 +230,39 @@ class ModifyHotelRoomBookingTool(BaseTool):
         new_guests_count: int | None = None,
         new_special_requests: str | None = None,
     ) -> str:
-        d_in = date.fromisoformat(new_check_in_date.strip()) if new_check_in_date else None
-        d_out = date.fromisoformat(new_check_out_date.strip()) if new_check_out_date else None
-        cat_enum = RoomCategory(new_category.strip().lower()) if new_category else None
+        try:
+            d_in = date.fromisoformat(new_check_in_date.strip()) if new_check_in_date else None
+            d_out = date.fromisoformat(new_check_out_date.strip()) if new_check_out_date else None
+        except ValueError:
+            logger.warning(
+                "ModifyHotelRoomBookingTool: invalid date format (%s, %s)",
+                new_check_in_date,
+                new_check_out_date,
+            )
+            return json.dumps(
+                {
+                    "success": False,
+                    "message_it": "Formato data non valido. Utilizzare YYYY-MM-DD (es. 2026-10-24).",
+                },
+                ensure_ascii=False,
+            )
+
+        cat_enum = None
+        if new_category:
+            try:
+                cat_enum = RoomCategory(new_category.strip().lower())
+            except ValueError:
+                logger.warning(
+                    "ModifyHotelRoomBookingTool: invalid category '%s'",
+                    new_category,
+                )
+                return json.dumps(
+                    {
+                        "success": False,
+                        "message_it": f"Categoria camera '{new_category}' non valida. Le categorie disponibili sono: superior, deluxe, junior_suite, panoramic_suite.",
+                    },
+                    ensure_ascii=False,
+                )
 
         req = ModifyRoomBookingRequest(
             reference_code=reference_code.strip(),
@@ -241,9 +300,7 @@ class CancelHotelRoomBookingTool(BaseTool):
     args_schema: type[BaseModel] = CancelHotelRoomBookingInput
     booking_service: HotelBookingService
 
-    async def _arun(
-        self, reference_code: str, guest_phone: str, reason: str | None = None
-    ) -> str:
+    async def _arun(self, reference_code: str, guest_phone: str, reason: str | None = None) -> str:
         res = await self.booking_service.cancel_booking(
             reference_code=reference_code.strip(),
             guest_phone=guest_phone.strip(),
@@ -276,9 +333,7 @@ class ReportEarlyDepartureTool(BaseTool):
     args_schema: type[BaseModel] = ReportEarlyDepartureInput
     booking_service: HotelBookingService
 
-    async def _arun(
-        self, reference_code: str, guest_phone: str, reason: str | None = None
-    ) -> str:
+    async def _arun(self, reference_code: str, guest_phone: str, reason: str | None = None) -> str:
         req = MarkEarlyDepartureRequest(
             reference_code=reference_code.strip(),
             guest_phone=guest_phone.strip(),

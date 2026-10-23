@@ -1,12 +1,11 @@
 import logging
 from datetime import UTC, date, datetime
 
-from supabase import Client
-
 from src.models.hotel_booking import HotelRoom, RoomBooking, RoomBookingStatus
 from src.repositories.base import BaseHotelRoomRepository
 from src.repositories.hotel_room_repo import InMemoryHotelRoomRepository
 from src.repositories.supabase_repo import get_supabase_client
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -97,17 +96,14 @@ class SupabaseHotelRoomRepository(BaseHotelRoomRepository):
             return await self._fallback.get_bookings_by_phone(phone)
         try:
             target = phone.strip()
-            res = (
-                self.client.table("room_bookings")
-                .select("*")
-                .eq("guest_phone", target)
-                .execute()
-            )
+            res = self.client.table("room_bookings").select("*").eq("guest_phone", target).execute()
             if not res.data:
                 # Also try normalized format
                 all_b = await self.get_all_bookings()
                 clean = target.replace(" ", "").replace("-", "")
-                return [b for b in all_b if b.guest_phone.replace(" ", "").replace("-", "") == clean]
+                return [
+                    b for b in all_b if b.guest_phone.replace(" ", "").replace("-", "") == clean
+                ]
             return [RoomBooking(**row) for row in res.data]
         except Exception as e:
             logger.warning("Supabase get_bookings_by_phone failed for %s: %s", phone, e)

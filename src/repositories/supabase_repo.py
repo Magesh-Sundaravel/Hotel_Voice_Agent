@@ -1,6 +1,5 @@
+import logging
 from datetime import UTC, date, datetime
-
-from supabase import Client, create_client
 
 from src.config import settings
 from src.models import (
@@ -22,6 +21,9 @@ from src.repositories.memory_repo import (
     InMemoryNotificationRepository,
     InMemoryRestaurantRepository,
 )
+from supabase import Client, create_client
+
+logger = logging.getLogger(__name__)
 
 _fallback_restaurant_repo = InMemoryRestaurantRepository()
 _fallback_booking_repo = InMemoryBookingRepository()
@@ -42,12 +44,7 @@ class SupabaseRestaurantRepository(BaseRestaurantRepository):
         if not self.client:
             return await _fallback_restaurant_repo.get_settings(restaurant_id)
         try:
-            res = (
-                self.client.table("restaurants")
-                .select("*")
-                .eq("id", restaurant_id)
-                .execute()
-            )
+            res = self.client.table("restaurants").select("*").eq("id", restaurant_id).execute()
             if not res.data:
                 return await _fallback_restaurant_repo.get_settings(restaurant_id)
             row = res.data[0]
@@ -64,7 +61,12 @@ class SupabaseRestaurantRepository(BaseRestaurantRepository):
                 shifts=shifts,
                 faqs=faqs,
             )
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Supabase get_settings failed for restaurant '%s', falling back to in-memory: %s",
+                restaurant_id,
+                e,
+            )
             return await _fallback_restaurant_repo.get_settings(restaurant_id)
 
     async def get_tables(self, restaurant_id: str) -> list[Table]:
@@ -79,21 +81,26 @@ class SupabaseRestaurantRepository(BaseRestaurantRepository):
                 .execute()
             )
             return [Table(**row) for row in res.data]
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Supabase get_tables failed for restaurant '%s', falling back to in-memory: %s",
+                restaurant_id,
+                e,
+            )
             return await _fallback_restaurant_repo.get_tables(restaurant_id)
 
     async def get_faqs(self, restaurant_id: str) -> list[FAQItem]:
         if not self.client:
             return await _fallback_restaurant_repo.get_faqs(restaurant_id)
         try:
-            res = (
-                self.client.table("faqs")
-                .select("*")
-                .eq("restaurant_id", restaurant_id)
-                .execute()
-            )
+            res = self.client.table("faqs").select("*").eq("restaurant_id", restaurant_id).execute()
             return [FAQItem(**row) for row in res.data]
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Supabase get_faqs failed for restaurant '%s', falling back to in-memory: %s",
+                restaurant_id,
+                e,
+            )
             return await _fallback_restaurant_repo.get_faqs(restaurant_id)
 
 
@@ -122,7 +129,13 @@ class SupabaseBookingRepository(BaseBookingRepository):
                 query = query.eq("status", status.value)
             res = query.execute()
             return [Reservation(**row) for row in res.data]
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Supabase get_reservations_for_date failed for restaurant '%s' on %s, falling back to in-memory: %s",
+                restaurant_id,
+                booking_date,
+                e,
+            )
             return await _fallback_booking_repo.get_reservations_for_date(
                 restaurant_id, booking_date, status
             )
@@ -140,7 +153,12 @@ class SupabaseBookingRepository(BaseBookingRepository):
             if not res.data:
                 return await _fallback_booking_repo.get_by_reference(reference_code)
             return Reservation(**res.data[0])
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Supabase get_by_reference failed for reference '%s', falling back to in-memory: %s",
+                reference_code,
+                e,
+            )
             return await _fallback_booking_repo.get_by_reference(reference_code)
 
     async def get_by_customer_phone(self, phone: str) -> list[Reservation]:
@@ -154,7 +172,12 @@ class SupabaseBookingRepository(BaseBookingRepository):
                 .execute()
             )
             return [Reservation(**row) for row in res.data]
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Supabase get_by_customer_phone failed for phone '%s', falling back to in-memory: %s",
+                phone,
+                e,
+            )
             return await _fallback_booking_repo.get_by_customer_phone(phone)
 
     async def create_reservation(self, reservation: Reservation) -> Reservation:
@@ -163,8 +186,12 @@ class SupabaseBookingRepository(BaseBookingRepository):
             try:
                 data = reservation.model_dump(mode="json")
                 self.client.table("reservations").insert(data).execute()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "Supabase create_reservation failed for reservation %s: %s",
+                    reservation.id,
+                    e,
+                )
         return reservation
 
     async def update_reservation(self, reservation: Reservation) -> Reservation:
@@ -173,11 +200,13 @@ class SupabaseBookingRepository(BaseBookingRepository):
             try:
                 data = reservation.model_dump(mode="json")
                 data["updated_at"] = datetime.now(UTC).isoformat()
-                self.client.table("reservations").update(data).eq(
-                    "id", reservation.id
-                ).execute()
-            except Exception:
-                pass
+                self.client.table("reservations").update(data).eq("id", reservation.id).execute()
+            except Exception as e:
+                logger.warning(
+                    "Supabase update_reservation failed for reservation %s: %s",
+                    reservation.id,
+                    e,
+                )
         return reservation
 
 
@@ -191,8 +220,12 @@ class SupabaseNotificationRepository(BaseNotificationRepository):
             try:
                 data = notification.model_dump(mode="json")
                 self.client.table("crm_notifications").insert(data).execute()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "Supabase add_notification failed for notification %s: %s",
+                    notification.id,
+                    e,
+                )
         return notification
 
     async def get_notifications(
@@ -218,7 +251,12 @@ class SupabaseNotificationRepository(BaseNotificationRepository):
                     restaurant_id, unread_only, limit
                 )
             return [CRMNotification(**row) for row in res.data]
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Supabase get_notifications failed for restaurant '%s', falling back to in-memory: %s",
+                restaurant_id,
+                e,
+            )
             return await _fallback_notification_repo.get_notifications(
                 restaurant_id, unread_only, limit
             )
@@ -234,6 +272,10 @@ class SupabaseNotificationRepository(BaseNotificationRepository):
                     .execute()
                 )
                 return len(res.data) > 0
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "Supabase mark_as_read failed for notification %s: %s",
+                    notification_id,
+                    e,
+                )
         return True

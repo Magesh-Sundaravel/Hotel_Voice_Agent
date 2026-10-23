@@ -1,9 +1,9 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class ShiftName(str, Enum):
+class ShiftName(StrEnum):
     LUNCH = "lunch"
     DINNER = "dinner"
 

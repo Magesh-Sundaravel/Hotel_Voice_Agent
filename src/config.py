@@ -38,11 +38,7 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         if not self.CORS_ORIGINS:
             return ["http://localhost:3000"]
-        return [
-            origin.strip()
-            for origin in self.CORS_ORIGINS.split(",")
-            if origin.strip()
-        ]
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     # Twilio settings
     TWILIO_ACCOUNT_SID: str = ""
@@ -54,7 +50,9 @@ class Settings(BaseSettings):
 
     # ElevenLabs settings
     ELEVENLABS_API_KEY: str = ""
-    ELEVENLABS_VOICE_ID: str = "Xb7hH8MSUJpSbSDYk0k2"  # Alice (default free & paid supported premade voice)
+    ELEVENLABS_VOICE_ID: str = (
+        "Xb7hH8MSUJpSbSDYk0k2"  # Alice (default free & paid supported premade voice)
+    )
     ELEVENLABS_MODEL_ID: str = "eleven_turbo_v2_5"
 
     # STT Provider ("groq" or "elevenlabs")

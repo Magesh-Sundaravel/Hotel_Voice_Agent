@@ -55,9 +55,7 @@ async def test_unknown_caller_lookup(guest_crm_service):
 
 
 @pytest.mark.asyncio
-async def test_save_guest_preference_triggers_allergy_alert(
-    guest_crm_service, notification_repo
-):
+async def test_save_guest_preference_triggers_allergy_alert(guest_crm_service, notification_repo):
     phone = "+39 333 1112233"
     updated_guest = await guest_crm_service.save_guest_preference(
         phone=phone,
@@ -75,9 +73,7 @@ async def test_save_guest_preference_triggers_allergy_alert(
 
 
 @pytest.mark.asyncio
-async def test_create_concierge_transport_request(
-    guest_crm_service, notification_repo
-):
+async def test_create_concierge_transport_request(guest_crm_service, notification_repo):
     req = await guest_crm_service.create_concierge_request(
         phone="+39 335 9988776",
         category=ConciergeCategory.TRANSPORT,
@@ -118,3 +114,41 @@ async def test_guest_feedback_submission(guest_crm_service, notification_repo):
     fb_alerts = [n for n in notifs if n.type == NotificationType.GUEST_FEEDBACK]
     assert len(fb_alerts) >= 1
     assert "10/10" in fb_alerts[0].title
+
+
+@pytest.mark.asyncio
+async def test_guest_greeting_without_title_uses_first_name(guest_crm_service):
+    # Register a guest with no title specified
+    phone = "+39 333 7778899"
+    await guest_crm_service.save_guest_preference(
+        phone=phone,
+        special_note="First time inquiry",
+    )
+    # The default created profile has first_name="Ospite", title=None
+    ctx = await guest_crm_service.lookup_caller_context(phone)
+    assert ctx.is_known_guest is True
+    assert ctx.guest.title is None
+    # Greets using first name ("Ospite") without any forced "Signor" or "Signora" prefix
+    assert "Buongiorno Ospite!" in ctx.suggested_greeting_it
+
+
+@pytest.mark.asyncio
+async def test_set_and_update_guest_title(guest_crm_service):
+    phone = "+39 333 4445566"
+    guest = await guest_crm_service.save_guest_preference(
+        phone=phone,
+        title="Signor",
+    )
+    assert guest.title == "Signor"
+
+    ctx = await guest_crm_service.lookup_caller_context(phone)
+    assert "Buongiorno Signor Registrato!" in ctx.suggested_greeting_it
+
+    # Update title
+    updated = await guest_crm_service.save_guest_preference(
+        phone=phone,
+        title="Signora",
+    )
+    assert updated.title == "Signora"
+    ctx_updated = await guest_crm_service.lookup_caller_context(phone)
+    assert "Buongiorno Signora Registrato!" in ctx_updated.suggested_greeting_it

@@ -75,9 +75,7 @@ class BookingService:
         if not avail.is_available or not avail.matched_table_id:
             alt_msg = ""
             if avail.alternatives:
-                alt_msg = (
-                    f" Orari alternativi disponibili: {', '.join(avail.alternatives)}."
-                )
+                alt_msg = f" Orari alternativi disponibili: {', '.join(avail.alternatives)}."
             reason = avail.reason or "Orario non disponibile."
             return ServiceResult(
                 success=False,
@@ -101,12 +99,8 @@ class BookingService:
             booking_time=request.booking_time,
             duration_minutes=90,
             table_id=avail.matched_table_id,
-            dietary_notes=request.dietary_notes.strip()
-            if request.dietary_notes
-            else None,
-            special_requests=request.special_requests.strip()
-            if request.special_requests
-            else None,
+            dietary_notes=request.dietary_notes.strip() if request.dietary_notes else None,
+            special_requests=request.special_requests.strip() if request.special_requests else None,
             status=BookingStatus.CONFIRMED,
         )
 
@@ -164,9 +158,7 @@ class BookingService:
 
         # 2. Lookup by phone
         phone_matches = await self.booking_repo.get_by_customer_phone(customer_phone)
-        active_matches = [
-            r for r in phone_matches if r.status == BookingStatus.CONFIRMED
-        ]
+        active_matches = [r for r in phone_matches if r.status == BookingStatus.CONFIRMED]
 
         if not active_matches:
             return (
@@ -244,9 +236,7 @@ class BookingService:
             if not avail.is_available:
                 alt_msg = ""
                 if avail.alternatives:
-                    alt_msg = (
-                        f" Alternative disponibili: {', '.join(avail.alternatives)}."
-                    )
+                    alt_msg = f" Alternative disponibili: {', '.join(avail.alternatives)}."
                 return ServiceResult(
                     success=False,
                     message="New slot not available.",

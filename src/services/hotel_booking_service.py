@@ -1,10 +1,10 @@
+import logging
 import random
 import uuid
 from datetime import UTC, date, datetime
 
 from src.integrations.email_service import EmailService
 from src.integrations.twilio_service import TwilioService
-from src.models.crm import TravelPersona
 from src.models.hotel_booking import (
     ROOM_CATEGORY_DETAILS,
     AvailableCategoryOption,
@@ -21,6 +21,8 @@ from src.models.notification import CRMNotification, NotificationType
 from src.repositories.base import BaseNotificationRepository
 from src.repositories.hotel_room_repo import BaseHotelRoomRepository
 from src.services.guest_crm_service import GuestCRMService
+
+logger = logging.getLogger(__name__)
 
 
 def generate_reference_code(prefix: str = "SINA") -> str:
@@ -87,9 +89,7 @@ class HotelBookingService:
         occupied_room_numbers = {b.room_number for b in active_bookings}
 
         # Find available rooms grouped by category
-        available_by_cat: dict[RoomCategory, list[str]] = {
-            cat: [] for cat in RoomCategory
-        }
+        available_by_cat: dict[RoomCategory, list[str]] = {cat: [] for cat in RoomCategory}
         for room in all_rooms:
             if not room.is_active:
                 continue
@@ -144,9 +144,7 @@ class HotelBookingService:
             message_it=msg,
         )
 
-    async def create_booking(
-        self, request: CreateRoomBookingRequest
-    ) -> RoomBookingServiceResult:
+    async def create_booking(self, request: CreateRoomBookingRequest) -> RoomBookingServiceResult:
         avail = await self.check_availability(
             check_in_date=request.check_in_date,
             check_out_date=request.check_out_date,
@@ -256,7 +254,10 @@ class HotelBookingService:
                     check_out_date=request.check_out_date.isoformat(),
                 )
             except Exception:
-                pass
+                logger.exception(
+                    "Failed to send booking confirmation SMS to %s",
+                    saved_booking.guest_phone,
+                )
 
         # Dispatch automated Email confirmation if email was captured
         if self.email_service and saved_booking.guest_email:
@@ -274,7 +275,10 @@ class HotelBookingService:
                     special_requests=request.special_requests,
                 )
             except Exception:
-                pass
+                logger.exception(
+                    "Failed to send room booking confirmation email to %s",
+                    saved_booking.guest_email,
+                )
 
         # Sync to Guest CRM if service provided
         if self.guest_crm_service:
@@ -296,9 +300,7 @@ class HotelBookingService:
             booking=saved_booking,
         )
 
-    async def modify_booking(
-        self, request: ModifyRoomBookingRequest
-    ) -> RoomBookingServiceResult:
+    async def modify_booking(self, request: ModifyRoomBookingRequest) -> RoomBookingServiceResult:
         booking = await self.room_repo.get_booking_by_ref(request.reference_code)
         if not booking:
             return RoomBookingServiceResult(
@@ -430,7 +432,9 @@ class HotelBookingService:
         dep_date = request.actual_departure_date or date.today()
         booking.is_early_departure = True
         booking.actual_departure_date = dep_date
-        booking.early_departure_reason = request.reason or "Partenza anticipata segnalata dall'ospite"
+        booking.early_departure_reason = (
+            request.reason or "Partenza anticipata segnalata dall'ospite"
+        )
         booking.status = RoomBookingStatus.EARLY_DEPARTURE
 
         # Recalculate nights and cost based on actual stay duration

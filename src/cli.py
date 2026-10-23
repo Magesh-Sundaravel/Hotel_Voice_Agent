@@ -31,15 +31,11 @@ async def run_simulator():
     print("  /esci          - Chiude il simulatore")
     print("-" * 70)
 
-    caller_phone = input(
-        "Inserisci numero chiamante (default: +39 333 4567890): "
-    ).strip()
+    caller_phone = input("Inserisci numero chiamante (default: +39 333 4567890): ").strip()
     if not caller_phone:
         caller_phone = "+39 333 4567890"
 
-    caller_name = input(
-        "Inserisci nome chiamante (opzionale, es. Mario Rossi): "
-    ).strip()
+    caller_name = input("Inserisci nome chiamante (opzionale, es. Mario Rossi): ").strip()
     if not caller_name:
         caller_name = None
 
@@ -128,9 +124,7 @@ async def run_simulator():
         if user_text.lower() in ["/chiudi", "riattacca", "/hangup"]:
             print("\n📴 [HAI RIAGGANCIATO IL RICEVITORE]")
             choice = (
-                input("\nVuoi effettuare un'altra chiamata? (s/n, default 's'): ")
-                .strip()
-                .lower()
+                input("\nVuoi effettuare un'altra chiamata? (s/n, default 's'): ").strip().lower()
             )
             if choice == "n":
                 print("\nArrivederci!")
@@ -160,9 +154,7 @@ async def run_simulator():
             bookings = await repo.get_reservations_for_date(
                 "sina_bernini_bristol", date.today(), status=None
             )
-            print(
-                f"\n--- PRENOTAZIONI CONFERMATE OGGI ({date.today().strftime('%d/%m/%Y')}) ---"
-            )
+            print(f"\n--- PRENOTAZIONI CONFERMATE OGGI ({date.today().strftime('%d/%m/%Y')}) ---")
             if not bookings:
                 print("Nessuna prenotazione trovata per oggi.")
             for b in bookings:
@@ -171,9 +163,7 @@ async def run_simulator():
                 )
                 if b.dietary_notes:
                     print(f"    Note dietetiche: {b.dietary_notes}")
-            print(
-                "-------------------------------------------------------------------"
-            )
+            print("-------------------------------------------------------------------")
             continue
 
         if user_text.lower() == "/reset":
@@ -192,9 +182,7 @@ async def run_simulator():
                 print("📴  [TELEFONATA CONCLUSA - RICEVITORE RIAGGANCIATO]")
                 print("=" * 50)
                 choice = (
-                    input(
-                        "\nVuoi simulare una nuova telefonata? (s/n, default 's'): "
-                    )
+                    input("\nVuoi simulare una nuova telefonata? (s/n, default 's'): ")
                     .strip()
                     .lower()
                 )

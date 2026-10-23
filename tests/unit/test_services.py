@@ -51,9 +51,7 @@ async def test_availability_exceeds_max_party_size(availability_service):
 
 
 @pytest.mark.asyncio
-async def test_availability_conflict_and_alternatives(
-    availability_service, booking_service
-):
+async def test_availability_conflict_and_alternatives(availability_service, booking_service):
     target_date = date.today() + timedelta(days=2)
 
     # Book both 4-person tables (T3 and T4) at 20:00
@@ -115,9 +113,7 @@ async def test_create_booking_with_dietary_notes_triggers_crm_alert(
     assert result.reservation.reference_code.startswith("BV-")
 
     # Check CRM notifications
-    notifs = await notification_service.get_crm_notifications(
-        restaurant_id="default_trattoria"
-    )
+    notifs = await notification_service.get_crm_notifications(restaurant_id="default_trattoria")
     assert len(notifs) >= 2
     types = [n.type for n in notifs]
     assert NotificationType.NEW_BOOKING in types
@@ -199,9 +195,7 @@ async def test_restaurant_faq_matching(restaurant_service):
     assert parking_ans is not None
     assert "Garage Garibaldi" in parking_ans
 
-    pet_ans = await restaurant_service.answer_faq(
-        "default_trattoria", "Posso portare il mio cane?"
-    )
+    pet_ans = await restaurant_service.answer_faq("default_trattoria", "Posso portare il mio cane?")
     assert pet_ans is not None
     assert "cani" in pet_ans.lower()
 
@@ -238,9 +232,7 @@ async def test_past_time_today_rejected(availability_service):
     from zoneinfo import ZoneInfo
 
     # Mock current time as 21:00 today
-    mock_now = datetime.now(ZoneInfo("Europe/Rome")).replace(
-        hour=21, minute=0, second=0
-    )
+    mock_now = datetime.now(ZoneInfo("Europe/Rome")).replace(hour=21, minute=0, second=0)
     today = mock_now.date()
 
     # Asking for 13:00 (lunch) when it's already 21:00 today

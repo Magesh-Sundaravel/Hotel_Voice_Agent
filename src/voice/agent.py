@@ -124,11 +124,13 @@ class VoiceAgent:
                 for tc in msg.tool_calls:
                     fn_name = getattr(tc.function, "name", "")
                     fn_args = getattr(tc.function, "arguments", "{}")
-                    tool_calls.append({
-                        "id": getattr(tc, "id", f"call_{fn_name}"),
-                        "name": fn_name,
-                        "args": fn_args,
-                    })
+                    tool_calls.append(
+                        {
+                            "id": getattr(tc, "id", f"call_{fn_name}"),
+                            "name": fn_name,
+                            "args": fn_args,
+                        }
+                    )
             return content, tool_calls
 
         # Mock object with content and tool_calls attributes
@@ -149,11 +151,13 @@ class VoiceAgent:
                     call_id = tc.get("id", f"call_{name}")
                     tool_calls.append({"id": call_id, "name": name, "args": args})
                 elif hasattr(tc, "function"):
-                    tool_calls.append({
-                        "id": getattr(tc, "id", f"call_{tc.function.name}"),
-                        "name": tc.function.name,
-                        "args": tc.function.arguments,
-                    })
+                    tool_calls.append(
+                        {
+                            "id": getattr(tc, "id", f"call_{tc.function.name}"),
+                            "name": tc.function.name,
+                            "args": tc.function.arguments,
+                        }
+                    )
 
         return content, tool_calls
 
@@ -174,9 +178,11 @@ class VoiceAgent:
         final_reply = "Certamente."
 
         # 3. Agent Tool Calling Loop
-        for hop in range(self.max_tool_hops):
+        for _hop in range(self.max_tool_hops):
             # Assemble full message history starting with system prompt
-            formatted_messages = [{"role": "system", "content": sys_prompt}] + list(session.messages)
+            formatted_messages = [{"role": "system", "content": sys_prompt}] + list(
+                session.messages
+            )
 
             try:
                 llm_response = await self._invoke_llm(formatted_messages)
@@ -212,7 +218,9 @@ class VoiceAgent:
                         "type": "function",
                         "function": {
                             "name": tc["name"],
-                            "arguments": tc["args"] if isinstance(tc["args"], str) else json.dumps(tc["args"]),
+                            "arguments": tc["args"]
+                            if isinstance(tc["args"], str)
+                            else json.dumps(tc["args"]),
                         },
                     }
                     for tc in tool_calls

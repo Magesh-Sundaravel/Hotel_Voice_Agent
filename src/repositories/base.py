@@ -111,9 +111,7 @@ class BaseGuestCRMRepository(ABC):
         pass
 
     @abstractmethod
-    async def add_concierge_request(
-        self, request: ConciergeRequest
-    ) -> ConciergeRequest:
+    async def add_concierge_request(self, request: ConciergeRequest) -> ConciergeRequest:
         pass
 
     @abstractmethod
@@ -142,9 +140,7 @@ class BaseGuestCRMRepository(ABC):
     async def update_guest(self, guest: GuestProfile) -> GuestProfile:
         return await self.save_guest(guest)
 
-    async def save_concierge_request(
-        self, request: ConciergeRequest
-    ) -> ConciergeRequest:
+    async def save_concierge_request(self, request: ConciergeRequest) -> ConciergeRequest:
         return await self.add_concierge_request(request)
 
     async def save_feedback(self, feedback: GuestFeedback) -> GuestFeedback:
@@ -198,4 +194,3 @@ class BaseHotelRoomRepository(ABC):
 
     async def save_booking(self, booking: RoomBooking) -> RoomBooking:
         return await self.create_booking(booking)
-

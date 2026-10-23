@@ -1,8 +1,6 @@
 import logging
 from datetime import UTC, datetime
 
-from supabase import Client
-
 from src.models.crm import (
     CityRecommendationItem,
     ConciergeCategory,
@@ -20,6 +18,7 @@ from src.repositories.memory_repo import (
     normalize_phone_number,
 )
 from src.repositories.supabase_repo import get_supabase_client
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +71,7 @@ class SupabaseGuestCRMRepository(BaseGuestCRMRepository):
             return await self._fallback.get_guest_by_phone(phone)
         try:
             target = normalize_phone_number(phone)
-            res = (
-                self.client.table("crm_guests")
-                .select("*")
-                .eq("phone_number", target)
-                .execute()
-            )
+            res = self.client.table("crm_guests").select("*").eq("phone_number", target).execute()
             if res.data:
                 return self._row_to_guest(res.data[0])
 
@@ -107,12 +101,7 @@ class SupabaseGuestCRMRepository(BaseGuestCRMRepository):
         if not self.client:
             return await self._fallback.get_guest_by_id(guest_id)
         try:
-            res = (
-                self.client.table("crm_guests")
-                .select("*")
-                .eq("id", guest_id)
-                .execute()
-            )
+            res = self.client.table("crm_guests").select("*").eq("id", guest_id).execute()
             if not res.data:
                 return await self._fallback.get_guest_by_id(guest_id)
             return self._row_to_guest(res.data[0])
@@ -153,12 +142,7 @@ class SupabaseGuestCRMRepository(BaseGuestCRMRepository):
         if not self.client:
             return await self._fallback.get_stay_by_id(stay_id)
         try:
-            res = (
-                self.client.table("hotel_stays")
-                .select("*")
-                .eq("id", stay_id)
-                .execute()
-            )
+            res = self.client.table("hotel_stays").select("*").eq("id", stay_id).execute()
             if not res.data:
                 return await self._fallback.get_stay_by_id(stay_id)
             return HotelStay(**res.data[0])
@@ -180,12 +164,7 @@ class SupabaseGuestCRMRepository(BaseGuestCRMRepository):
         if not self.client:
             return await self._fallback.get_hotel_property(hotel_id)
         try:
-            res = (
-                self.client.table("hotels")
-                .select("*")
-                .eq("id", hotel_id)
-                .execute()
-            )
+            res = self.client.table("hotels").select("*").eq("id", hotel_id).execute()
             if not res.data:
                 return await self._fallback.get_hotel_property(hotel_id)
             row = res.data[0]
@@ -194,9 +173,7 @@ class SupabaseGuestCRMRepository(BaseGuestCRMRepository):
             logger.warning("Supabase get_hotel_property failed for %s: %s", hotel_id, e)
             return await self._fallback.get_hotel_property(hotel_id)
 
-    async def add_concierge_request(
-        self, request: ConciergeRequest
-    ) -> ConciergeRequest:
+    async def add_concierge_request(self, request: ConciergeRequest) -> ConciergeRequest:
         await self._fallback.add_concierge_request(request)
         if self.client:
             try:
@@ -236,7 +213,9 @@ class SupabaseGuestCRMRepository(BaseGuestCRMRepository):
         try:
             query = self.client.table("city_recommendations").select("*").eq("hotel_id", hotel_id)
             if category:
-                query = query.eq("category", category.value if hasattr(category, "value") else str(category))
+                query = query.eq(
+                    "category", category.value if hasattr(category, "value") else str(category)
+                )
             res = query.execute()
             if not res.data:
                 return await self._fallback.get_city_recommendations(hotel_id, persona, category)

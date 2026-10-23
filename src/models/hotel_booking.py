@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,7 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class RoomCategory(str, Enum):
+class RoomCategory(StrEnum):
     SUPERIOR = "superior"
     DELUXE = "deluxe"
     JUNIOR_SUITE = "junior_suite"
@@ -39,11 +39,12 @@ ROOM_CATEGORY_DETAILS = {
         "price_per_night": 750.0,
         "max_guests": 4,
         "description_it": "Prestigiosa suite all'ultimo piano con terrazza privata panoramica a 360° su Roma, idromassaggio e maggiordomo.",
+        "features_it": "terrazza 360°, idromassaggio",
     },
 }
 
 
-class RoomBookingStatus(str, Enum):
+class RoomBookingStatus(StrEnum):
     CONFIRMED = "confirmed"
     CHECKED_IN = "checked_in"
     CHECKED_OUT = "checked_out"

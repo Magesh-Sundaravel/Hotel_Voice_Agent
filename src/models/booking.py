@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,7 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class BookingStatus(str, Enum):
+class BookingStatus(StrEnum):
     CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
     COMPLETED = "completed"

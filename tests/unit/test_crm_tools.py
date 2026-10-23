@@ -1,13 +1,8 @@
 import json
+
 import pytest
 
-from src.models import ConciergeCategory, TravelPersona
 from src.tools.crm_tools import (
-    GetCityRecommendationsTool,
-    LookupCallerCRMTool,
-    RecordGuestPreferenceTool,
-    RequestConciergeServiceTool,
-    SubmitGuestFeedbackTool,
     build_crm_tools,
 )
 
@@ -39,6 +34,23 @@ async def test_record_preference_tool(crm_tools):
     data = json.loads(res_str)
     assert data["success"] is True
     assert "No crostacei" in data["current_dietary"]
+
+
+@pytest.mark.asyncio
+async def test_record_title_preference_tool(crm_tools):
+    tool = crm_tools["record_guest_preference"]
+    res_str = await tool._arun(
+        phone_number="+39 333 9998877",
+        title="Signor",
+        special_note="Preferisce titolo formale",
+    )
+    data = json.loads(res_str)
+    assert data["success"] is True
+
+    lookup = crm_tools["lookup_caller_crm"]
+    res_lookup = await lookup._arun(phone_number="+39 333 9998877")
+    data_lookup = json.loads(res_lookup)
+    assert data_lookup["title"] == "Signor"
 
 
 @pytest.mark.asyncio

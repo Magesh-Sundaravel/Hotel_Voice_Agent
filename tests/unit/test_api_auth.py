@@ -34,15 +34,11 @@ def test_internal_crm_route_requires_api_key_when_configured(client, monkeypatch
     assert res_wrong.status_code == 401
 
     # Request with wrong Bearer token
-    res_wrong_bearer = client.get(
-        "/api/crm/guests", headers={"Authorization": "Bearer wrong-key"}
-    )
+    res_wrong_bearer = client.get("/api/crm/guests", headers={"Authorization": "Bearer wrong-key"})
     assert res_wrong_bearer.status_code == 401
 
     # Request with valid X-API-Key header
-    res_valid_header = client.get(
-        "/api/crm/guests", headers={"X-API-Key": "super-secret-key-1234"}
-    )
+    res_valid_header = client.get("/api/crm/guests", headers={"X-API-Key": "super-secret-key-1234"})
     assert res_valid_header.status_code == 200
 
     # Request with valid Bearer token
@@ -60,27 +56,21 @@ def test_internal_room_bookings_routes_require_api_key(client, monkeypatch):
     res_no_auth = client.get("/api/room-bookings")
     assert res_no_auth.status_code == 401
 
-    res_auth = client.get(
-        "/api/room-bookings", headers={"X-API-Key": "super-secret-key-1234"}
-    )
+    res_auth = client.get("/api/room-bookings", headers={"X-API-Key": "super-secret-key-1234"})
     assert res_auth.status_code == 200
 
     # /api/rooms requires auth
     res_rooms_no_auth = client.get("/api/rooms")
     assert res_rooms_no_auth.status_code == 401
 
-    res_rooms_auth = client.get(
-        "/api/rooms", headers={"X-API-Key": "super-secret-key-1234"}
-    )
+    res_rooms_auth = client.get("/api/rooms", headers={"X-API-Key": "super-secret-key-1234"})
     assert res_rooms_auth.status_code == 200
 
     # /api/hotel-stats requires auth
     res_stats_no_auth = client.get("/api/hotel-stats")
     assert res_stats_no_auth.status_code == 401
 
-    res_stats_auth = client.get(
-        "/api/hotel-stats", headers={"X-API-Key": "super-secret-key-1234"}
-    )
+    res_stats_auth = client.get("/api/hotel-stats", headers={"X-API-Key": "super-secret-key-1234"})
     assert res_stats_auth.status_code == 200
 
 
@@ -91,18 +81,14 @@ def test_internal_reservations_and_notifications_require_api_key(client, monkeyp
     res = client.get("/api/reservations")
     assert res.status_code == 401
 
-    res_ok = client.get(
-        "/api/reservations", headers={"X-API-Key": "super-secret-key-1234"}
-    )
+    res_ok = client.get("/api/reservations", headers={"X-API-Key": "super-secret-key-1234"})
     assert res_ok.status_code == 200
 
     # /api/notifications
     res_notif = client.get("/api/notifications")
     assert res_notif.status_code == 401
 
-    res_notif_ok = client.get(
-        "/api/notifications", headers={"X-API-Key": "super-secret-key-1234"}
-    )
+    res_notif_ok = client.get("/api/notifications", headers={"X-API-Key": "super-secret-key-1234"})
     assert res_notif_ok.status_code == 200
 
 
@@ -132,6 +118,7 @@ def test_unauthenticated_endpoints_remain_accessible_without_api_key(client, mon
 
     # /api/availability is unauthenticated
     from datetime import date, timedelta
+
     target_date = (date.today() + timedelta(days=2)).isoformat()
     res_avail = client.get(
         "/api/availability",

@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,7 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class NotificationType(str, Enum):
+class NotificationType(StrEnum):
     NEW_BOOKING = "new_booking"
     MODIFICATION = "modification"
     CANCELLATION = "cancellation"

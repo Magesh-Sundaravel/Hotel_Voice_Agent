@@ -204,7 +204,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #7: Stop Swallowing Exceptions Silently
+### Fix #7: Stop Swallowing Exceptions Silently ✅ [COMPLETED]
 
 **Files to modify:**
 - `src/services/hotel_booking_service.py` — SMS/email `except Exception: pass`
@@ -221,7 +221,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #8: Fix Gender Detection
+### Fix #8: Fix Gender Detection ✅ [COMPLETED]
 
 **Files to modify:**
 - `src/models/crm.py` — add field
@@ -241,7 +241,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #9: Add CI/CD + Ruff + Pre-commit
+### Fix #9: Add CI/CD + Ruff + Pre-commit ✅ [COMPLETED]
 
 **Files to create:**
 - `.github/workflows/ci.yml` (new)
@@ -270,7 +270,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #10: Fix Config Mismatch
+### Fix #10: Fix Config Mismatch ✅ [COMPLETED]
 
 **Files to modify:**
 - `src/config.py`
@@ -285,7 +285,7 @@ CREATE TABLE guest_preferences (
 
 ---
 
-### Fix #11: Deduplicate Room Rates (Prompt ↔ Model)
+### Fix #11: Deduplicate Room Rates (Prompt ↔ Model) ✅ [COMPLETED]
 
 **Files to modify:**
 - `src/agent/prompts.py`

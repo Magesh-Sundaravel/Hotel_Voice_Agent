@@ -4,17 +4,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.models.crm import (
-    ConciergeCategory,
-    ConciergeRequest,
-    GuestFeedback,
     GuestPreferences,
     GuestProfile,
-    HotelStay,
-    StayStage,
-    TravelPersona,
-    VIPTier,
 )
-from src.models.hotel_booking import HotelRoom, RoomBooking, RoomBookingStatus, RoomCategory
+from src.models.hotel_booking import RoomBooking, RoomBookingStatus, RoomCategory
 from src.repositories.hotel_room_repo import InMemoryHotelRoomRepository
 from src.repositories.memory_repo import InMemoryGuestCRMRepository
 from src.repositories.supabase_guest_crm_repo import SupabaseGuestCRMRepository
@@ -111,10 +104,12 @@ async def test_supabase_hotel_room_repo_mock():
             "status": "confirmed",
         }
     ]
-    client = MockSupabaseClient({
-        "hotel_rooms": mock_rooms,
-        "room_bookings": mock_bookings,
-    })
+    client = MockSupabaseClient(
+        {
+            "hotel_rooms": mock_rooms,
+            "room_bookings": mock_bookings,
+        }
+    )
 
     fallback = InMemoryHotelRoomRepository()
     repo = SupabaseHotelRoomRepository(client=client, fallback_repo=fallback)

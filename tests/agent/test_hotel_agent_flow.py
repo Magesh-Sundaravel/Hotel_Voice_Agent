@@ -24,7 +24,10 @@ class ScriptedMockLLM:
             resp = self.responses[self.idx]
             self.idx += 1
             return resp
-        return {"content": "Posso esserLe utile con qualcos'altro da Sina Hotels?", "tool_calls": []}
+        return {
+            "content": "Posso esserLe utile con qualcos'altro da Sina Hotels?",
+            "tool_calls": [],
+        }
 
 
 @pytest.mark.asyncio

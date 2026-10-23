@@ -71,9 +71,7 @@ class SpeechToTextService:
                     logger.info("ElevenLabs STT transcript: %s", text)
                     return text
                 else:
-                    logger.warning(
-                        "ElevenLabs STT error: %s - %s", res.status_code, res.text
-                    )
+                    logger.warning("ElevenLabs STT error: %s - %s", res.status_code, res.text)
         except (httpx.HTTPError, OSError, ValueError) as e:
             logger.error("ElevenLabs STT exception: %s", e)
         return ""

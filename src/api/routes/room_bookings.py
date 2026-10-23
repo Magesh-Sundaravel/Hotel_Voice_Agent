@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 from src.api.middleware.auth import verify_api_key
 from src.models.hotel_booking import (
-    AvailableCategoryOption,
     CreateRoomBookingRequest,
     HotelRoom,
     MarkEarlyDepartureRequest,
@@ -161,24 +160,15 @@ async def get_hotel_stats(
         b
         for b in bookings
         if b.status == RoomBookingStatus.CHECKED_IN
-        or (
-            b.status == RoomBookingStatus.CONFIRMED
-            and b.check_in_date <= today < b.check_out_date
-        )
+        or (b.status == RoomBookingStatus.CONFIRMED and b.check_in_date <= today < b.check_out_date)
     ]
     arrivals_today = [
-        b
-        for b in bookings
-        if b.check_in_date == today and b.status != RoomBookingStatus.CANCELLED
+        b for b in bookings if b.check_in_date == today and b.status != RoomBookingStatus.CANCELLED
     ]
     departures_today = [
-        b
-        for b in bookings
-        if b.check_out_date == today and b.status != RoomBookingStatus.CANCELLED
+        b for b in bookings if b.check_out_date == today and b.status != RoomBookingStatus.CANCELLED
     ]
-    early_departures = [
-        b for b in bookings if b.status == RoomBookingStatus.EARLY_DEPARTURE
-    ]
+    early_departures = [b for b in bookings if b.status == RoomBookingStatus.EARLY_DEPARTURE]
 
     total_rooms = len(rooms)
     occupied_count = len(in_house)

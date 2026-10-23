@@ -1,10 +1,10 @@
 import json
 
-from src.tools.base import BaseTool
 from pydantic import BaseModel, Field
 
 from src.integrations.email_service import EmailService
 from src.integrations.twilio_service import TwilioService
+from src.tools.base import BaseTool
 
 
 class SendBookingConfirmationEmailInput(BaseModel):
@@ -19,7 +19,9 @@ class SendBookingConfirmationEmailInput(BaseModel):
     guests_count: int = Field(default=2, description="Numero di ospiti")
     total_price: int | None = Field(default=None, description="Prezzo totale in Euro")
     room_number: str | None = Field(default=None, description="Numero camera assegnata")
-    special_requests: str | None = Field(default=None, description="Eventuali richieste speciali o note")
+    special_requests: str | None = Field(
+        default=None, description="Eventuali richieste speciali o note"
+    )
 
 
 class SendBookingConfirmationEmailTool(BaseTool):

@@ -1,10 +1,10 @@
 from datetime import date, timedelta
+
 import pytest
 
 from src.models.hotel_booking import (
     CreateRoomBookingRequest,
     MarkEarlyDepartureRequest,
-    ModifyRoomBookingRequest,
     RoomBookingStatus,
     RoomCategory,
 )
@@ -122,7 +122,9 @@ async def test_cancel_booking_success(hotel_booking_service):
 
 
 @pytest.mark.asyncio
-async def test_create_booking_reference_code_collision_resolution(hotel_booking_service, monkeypatch):
+async def test_create_booking_reference_code_collision_resolution(
+    hotel_booking_service, monkeypatch
+):
     real_get_by_ref = hotel_booking_service.room_repo.get_booking_by_ref
     first_call = True
 

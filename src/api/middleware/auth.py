@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hmac
 import logging
-from typing import Optional
 
 from fastapi import HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
@@ -20,8 +19,8 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 async def verify_api_key(
     request: Request,
-    api_key_header_val: Optional[str] = Security(api_key_header),
-    auth_credentials: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme),
+    api_key_header_val: str | None = Security(api_key_header),
+    auth_credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> str:
     """Verifies internal API requests using an API Key.
 
@@ -38,7 +37,7 @@ async def verify_api_key(
         logger.debug("API_KEY not configured. Allowing unauthenticated access.")
         return ""
 
-    provided_key: Optional[str] = None
+    provided_key: str | None = None
     if api_key_header_val:
         provided_key = api_key_header_val.strip()
     elif auth_credentials and auth_credentials.credentials:

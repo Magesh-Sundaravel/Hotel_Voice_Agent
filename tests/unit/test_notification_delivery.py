@@ -36,7 +36,9 @@ def notif_service(mock_email_service, mock_twilio_service):
 
 
 @pytest.mark.asyncio
-async def test_notify_new_booking_email_only(notif_service, mock_email_service, mock_twilio_service):
+async def test_notify_new_booking_email_only(
+    notif_service, mock_email_service, mock_twilio_service
+):
     notif = await notif_service.notify_new_booking(
         restaurant_id="sina_bernini",
         reference_code="SINA-1001",
@@ -162,9 +164,7 @@ async def test_notify_modification_email_only(
 
 
 @pytest.mark.asyncio
-async def test_notify_vip_alert_email_only(
-    notif_service, mock_email_service, mock_twilio_service
-):
+async def test_notify_vip_alert_email_only(notif_service, mock_email_service, mock_twilio_service):
     notif = await notif_service.notify_vip_alert(
         restaurant_id="sina_bernini",
         customer_name="Lord Hamilton",
@@ -242,9 +242,7 @@ async def test_graceful_degradation_on_sms_failure(
 
 
 @pytest.mark.asyncio
-async def test_missing_owner_contacts_skips_cleanly(
-    mock_email_service, mock_twilio_service
-):
+async def test_missing_owner_contacts_skips_cleanly(mock_email_service, mock_twilio_service):
     repo = InMemoryNotificationRepository()
     service = NotificationService(
         notification_repo=repo,

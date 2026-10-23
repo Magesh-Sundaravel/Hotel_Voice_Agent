@@ -10,6 +10,7 @@ Incorporate deterministic security & business guardrails:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from datetime import date
@@ -602,7 +603,10 @@ RESTAURANT_TOOL_SCHEMAS: list[dict[str, Any]] = [
 # Code-Level Guardrails
 # ---------------------------------------------------------------------------
 
-def validate_dates(check_in_str: str, check_out_str: str) -> tuple[bool, date | None, date | None, str]:
+
+def validate_dates(
+    check_in_str: str, check_out_str: str
+) -> tuple[bool, date | None, date | None, str]:
     """Validates date formats, temporal order, and non-past constraints.
 
     Returns (is_valid, parsed_in, parsed_out, error_message).
@@ -686,6 +690,7 @@ def check_read_back_confirmation(session: CallSession) -> bool:
 # Native Tool Execution Dispatcher
 # ---------------------------------------------------------------------------
 
+
 async def execute_tool_call(
     tool_name: str,
     raw_args: dict[str, Any] | str,
@@ -731,10 +736,8 @@ async def execute_tool_call(
         cat_raw = args.get("category")
         cat_enum = None
         if cat_raw:
-            try:
+            with contextlib.suppress(ValueError):
                 cat_enum = RoomCategory(str(cat_raw).strip().lower())
-            except ValueError:
-                pass
 
         guests_count = int(args.get("guests_count", 2))
         res = await hotel_booking_service.check_availability(
@@ -745,13 +748,15 @@ async def execute_tool_call(
         )
 
         # Record into session booking draft
-        session.collected_booking_fields.update({
-            "check_in_date": cin_raw,
-            "check_out_date": cout_raw,
-            "guests_count": guests_count,
-            "category": cat_raw,
-            "availability_checked": res.is_available,
-        })
+        session.collected_booking_fields.update(
+            {
+                "check_in_date": cin_raw,
+                "check_out_date": cout_raw,
+                "guests_count": guests_count,
+                "category": cat_raw,
+                "availability_checked": res.is_available,
+            }
+        )
 
         return json.dumps(res.model_dump(mode="json"), ensure_ascii=False)
 
@@ -769,14 +774,17 @@ async def execute_tool_call(
 
         # Guardrail: Read-back confirmation
         if not check_read_back_confirmation(session):
-            return json.dumps({
-                "success": False,
-                "requires_confirmation": True,
-                "message_it": (
-                    "Prima di creare la prenotazione, è necessario riepilogare all'ospite date, "
-                    "categoria e costo del soggiorno e chiedere conferma esplicita."
-                ),
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "success": False,
+                    "requires_confirmation": True,
+                    "message_it": (
+                        "Prima di creare la prenotazione, è necessario riepilogare all'ospite date, "
+                        "categoria e costo del soggiorno e chiedere conferma esplicita."
+                    ),
+                },
+                ensure_ascii=False,
+            )
 
         cat_raw = str(args.get("category", "superior")).strip().lower()
         try:
@@ -811,13 +819,16 @@ async def execute_tool_call(
         if res.booking:
             session.last_reservation_code = res.booking.reference_code
 
-        return json.dumps({
-            "success": res.success,
-            "message_it": res.message_it,
-            "reference_code": res.booking.reference_code if res.booking else None,
-            "room_number": res.booking.room_number if res.booking else None,
-            "total_price": res.booking.total_price if res.booking else None,
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": res.success,
+                "message_it": res.message_it,
+                "reference_code": res.booking.reference_code if res.booking else None,
+                "room_number": res.booking.room_number if res.booking else None,
+                "total_price": res.booking.total_price if res.booking else None,
+            },
+            ensure_ascii=False,
+        )
 
     # 3. Modify Hotel Room Booking
     if tool_name == "modify_hotel_room_booking":
@@ -856,7 +867,9 @@ async def execute_tool_call(
             new_special_requests=args.get("new_special_requests"),
         )
         res = await hotel_booking_service.modify_booking(req)
-        return json.dumps({"success": res.success, "message_it": res.message_it}, ensure_ascii=False)
+        return json.dumps(
+            {"success": res.success, "message_it": res.message_it}, ensure_ascii=False
+        )
 
     # 4. Cancel Hotel Room Booking
     if tool_name == "cancel_hotel_room_booking":
@@ -872,7 +885,9 @@ async def execute_tool_call(
             guest_phone=str(caller_phone).strip(),
             reason=reason,
         )
-        return json.dumps({"success": res.success, "message_it": res.message_it}, ensure_ascii=False)
+        return json.dumps(
+            {"success": res.success, "message_it": res.message_it}, ensure_ascii=False
+        )
 
     # 5. Early Departure
     if tool_name == "report_early_departure":
@@ -890,46 +905,57 @@ async def execute_tool_call(
             reason=reason,
         )
         res = await hotel_booking_service.mark_early_departure(req)
-        return json.dumps({
-            "success": res.success,
-            "message_it": res.message_it,
-            "actual_departure_date": str(date.today()),
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": res.success,
+                "message_it": res.message_it,
+                "actual_departure_date": str(date.today()),
+            },
+            ensure_ascii=False,
+        )
 
     # 6. CRM Lookup Caller
     if tool_name == "lookup_caller_crm":
         if not guest_crm_service:
-            return json.dumps({"is_known_guest": False, "suggested_greeting_it": "Buongiorno da Sina Hotels."})
+            return json.dumps(
+                {"is_known_guest": False, "suggested_greeting_it": "Buongiorno da Sina Hotels."}
+            )
 
         caller_phone = args.get("phone_number") or session.caller_phone
         ctx = await guest_crm_service.lookup_caller_context(str(caller_phone).strip())
         if not ctx.is_known_guest or not ctx.guest:
-            return json.dumps({
-                "is_known_guest": False,
-                "stage": ctx.stage.value,
-                "suggested_greeting_it": ctx.suggested_greeting_it,
-                "notes": "Ospite non registrato o prima chiamata da questo numero.",
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "is_known_guest": False,
+                    "stage": ctx.stage.value,
+                    "suggested_greeting_it": ctx.suggested_greeting_it,
+                    "notes": "Ospite non registrato o prima chiamata da questo numero.",
+                },
+                ensure_ascii=False,
+            )
 
         guest = ctx.guest
         stay = ctx.stay
-        return json.dumps({
-            "is_known_guest": True,
-            "first_name": guest.first_name,
-            "last_name": guest.last_name,
-            "vip_tier": guest.vip_tier.value,
-            "persona": guest.persona.value,
-            "stage": ctx.stage.value,
-            "hotel": ctx.property.name if ctx.property else "Sina Bernini Bristol",
-            "room_number": stay.room_number if stay else None,
-            "room_type": stay.room_type if stay else None,
-            "special_occasion": stay.special_occasion if stay else None,
-            "dietary_restrictions": guest.preferences.dietary_restrictions,
-            "room_preferences": guest.preferences.room_preferences,
-            "favorite_drinks": guest.preferences.favorite_drinks,
-            "concierge_notes": guest.preferences.special_notes,
-            "suggested_greeting_it": ctx.suggested_greeting_it,
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "is_known_guest": True,
+                "first_name": guest.first_name,
+                "last_name": guest.last_name,
+                "vip_tier": guest.vip_tier.value,
+                "persona": guest.persona.value,
+                "stage": ctx.stage.value,
+                "hotel": ctx.property.name if ctx.property else "Sina Bernini Bristol",
+                "room_number": stay.room_number if stay else None,
+                "room_type": stay.room_type if stay else None,
+                "special_occasion": stay.special_occasion if stay else None,
+                "dietary_restrictions": guest.preferences.dietary_restrictions,
+                "room_preferences": guest.preferences.room_preferences,
+                "favorite_drinks": guest.preferences.favorite_drinks,
+                "concierge_notes": guest.preferences.special_notes,
+                "suggested_greeting_it": ctx.suggested_greeting_it,
+            },
+            ensure_ascii=False,
+        )
 
     # 7. Record Guest Preference
     if tool_name == "record_guest_preference":
@@ -944,12 +970,15 @@ async def execute_tool_call(
             favorite_drink=args.get("favorite_drink"),
             special_note=args.get("special_note"),
         )
-        return json.dumps({
-            "success": True,
-            "message_it": f"Preferenze aggiornate con successo per {guest.full_name}.",
-            "current_dietary": guest.preferences.dietary_restrictions,
-            "current_room_preferences": guest.preferences.room_preferences,
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "message_it": f"Preferenze aggiornate con successo per {guest.full_name}.",
+                "current_dietary": guest.preferences.dietary_restrictions,
+                "current_room_preferences": guest.preferences.room_preferences,
+            },
+            ensure_ascii=False,
+        )
 
     # 8. Request Concierge Service
     if tool_name == "request_concierge_service":
@@ -970,12 +999,15 @@ async def execute_tool_call(
             details=str(args.get("details", "")),
             scheduled_time=args.get("scheduled_time"),
         )
-        return json.dumps({
-            "success": True,
-            "request_id": req.id,
-            "title": req.title,
-            "message_it": f"Richiesta '{req.title}' registrata con successo. Il Concierge Sina ne ha preso carico.",
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "request_id": req.id,
+                "title": req.title,
+                "message_it": f"Richiesta '{req.title}' registrata con successo. Il Concierge Sina ne ha preso carico.",
+            },
+            ensure_ascii=False,
+        )
 
     # 9. City Recommendations
     if tool_name == "get_city_recommendations":
@@ -985,10 +1017,8 @@ async def execute_tool_call(
         cat_raw = args.get("category")
         cat_enum = None
         if cat_raw:
-            try:
+            with contextlib.suppress(ValueError):
                 cat_enum = ConciergeCategory(str(cat_raw).lower())
-            except ValueError:
-                pass
 
         caller_phone = args.get("phone_number") or session.caller_phone
         recs = await guest_crm_service.get_personalized_recommendations(
@@ -1019,11 +1049,14 @@ async def execute_tool_call(
             nps_score=nps,
             comments=args.get("comments"),
         )
-        return json.dumps({
-            "success": True,
-            "feedback_id": fb.id,
-            "message_it": "Grazie di cuore per aver condiviso la Sua opinione. Il Suo riscontro è prezioso per Sina Hotels.",
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "feedback_id": fb.id,
+                "message_it": "Grazie di cuore per aver condiviso la Sua opinione. Il Suo riscontro è prezioso per Sina Hotels.",
+            },
+            ensure_ascii=False,
+        )
 
     # 11. Hotel Info and Services
     if tool_name == "get_hotel_services_info":
@@ -1036,15 +1069,20 @@ async def execute_tool_call(
         e_svc = email_service or EmailService()
         email = str(args.get("guest_email", "")).strip()
         if "@" not in email or "." not in email:
-            return json.dumps({
-                "success": False,
-                "message_it": f"L'indirizzo email '{email}' non sembra valido. La prego di verificare.",
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "success": False,
+                    "message_it": f"L'indirizzo email '{email}' non sembra valido. La prego di verificare.",
+                },
+                ensure_ascii=False,
+            )
 
         ok = await e_svc.send_room_booking_confirmation(
             to_email=email,
             guest_name=str(args.get("guest_name", session.caller_name or "Ospite")),
-            reference_code=str(args.get("reference_code", session.last_reservation_code or "SINA-0000")),
+            reference_code=str(
+                args.get("reference_code", session.last_reservation_code or "SINA-0000")
+            ),
             room_category=str(args.get("room_category", "Camera")),
             check_in_date=str(args.get("check_in_date", "")),
             check_out_date=str(args.get("check_out_date", "")),
@@ -1053,7 +1091,11 @@ async def execute_tool_call(
             room_number=args.get("room_number"),
             special_requests=args.get("special_requests"),
         )
-        msg = f"Email di conferma inviata con successo a {email}." if ok else f"Impossibile inviare l'email a {email} al momento."
+        msg = (
+            f"Email di conferma inviata con successo a {email}."
+            if ok
+            else f"Impossibile inviare l'email a {email} al momento."
+        )
         return json.dumps({"success": ok, "message_it": msg}, ensure_ascii=False)
 
     # 13. Send SMS Confirmation
@@ -1063,12 +1105,18 @@ async def execute_tool_call(
         ok = await t_svc.send_booking_confirmation_sms(
             to_phone=phone,
             guest_name=str(args.get("guest_name", session.caller_name or "Ospite")),
-            reference_code=str(args.get("reference_code", session.last_reservation_code or "SINA-0000")),
+            reference_code=str(
+                args.get("reference_code", session.last_reservation_code or "SINA-0000")
+            ),
             category=str(args.get("room_category", "Camera")),
             check_in_date=str(args.get("check_in_date", "")),
             check_out_date=str(args.get("check_out_date", "")),
         )
-        msg = f"SMS di conferma inviato al numero {phone}." if ok else f"Non è stato possibile recapitare l'SMS a {phone}."
+        msg = (
+            f"SMS di conferma inviato al numero {phone}."
+            if ok
+            else f"Non è stato possibile recapitare l'SMS a {phone}."
+        )
         return json.dumps({"success": ok, "message_it": msg}, ensure_ascii=False)
 
     # 14. End Call

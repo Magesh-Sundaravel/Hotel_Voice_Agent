@@ -50,26 +50,28 @@ def test_twilio_websocket_connection(monkeypatch):
     with client.websocket_connect("/api/twilio/stream") as websocket:
         # Send connected event
         websocket.send_json({"event": "connected", "protocol": "Call"})
-        
+
         # Send start event
-        websocket.send_json({
-            "event": "start",
-            "start": {
-                "streamSid": "MZ123456",
-                "callSid": "CA123456",
-                "customParameters": {
-                    "caller_phone": "+393331234567",
-                    "hotel_name": "Sina Bernini Bristol",
+        websocket.send_json(
+            {
+                "event": "start",
+                "start": {
+                    "streamSid": "MZ123456",
+                    "callSid": "CA123456",
+                    "customParameters": {
+                        "caller_phone": "+393331234567",
+                        "hotel_name": "Sina Bernini Bristol",
+                    },
                 },
-            },
-        })
-        
+            }
+        )
+
         # Expect greeting media event from bot
         received = websocket.receive_json()
         assert received.get("event") == "media"
         assert received.get("streamSid") == "MZ123456"
         assert "payload" in received.get("media", {})
-        
+
         # Send stop event
         websocket.send_json({"event": "stop", "stop": {"callSid": "CA123456"}})
 
@@ -113,4 +115,3 @@ def test_twilio_outbound_call_endpoint_with_mocked_client(monkeypatch):
         from_="+39064883051",
         url="https://mock-domain.ngrok-free.app/api/twilio/incoming-call",
     )
-

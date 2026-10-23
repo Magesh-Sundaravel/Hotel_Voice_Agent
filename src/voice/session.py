@@ -101,9 +101,7 @@ class SessionStore:
         """Evicts sessions that exceeded the time-to-live."""
         now = time.time()
         expired = [
-            sid
-            for sid, s in self._sessions.items()
-            if (now - s.last_activity) > self._ttl_seconds
+            sid for sid, s in self._sessions.items() if (now - s.last_activity) > self._ttl_seconds
         ]
         for sid in expired:
             self._sessions.pop(sid, None)

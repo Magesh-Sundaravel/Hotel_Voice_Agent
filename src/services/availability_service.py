@@ -119,8 +119,7 @@ class AvailabilityService:
 
         if not matching_shift:
             shift_desc = ", ".join(
-                f"{s.name_it} ({s.start_time} - {s.last_seating_time})"
-                for s in settings.shifts
+                f"{s.name_it} ({s.start_time} - {s.last_seating_time})" for s in settings.shifts
             )
             return AvailabilityResponse(
                 is_available=False,
@@ -131,9 +130,7 @@ class AvailabilityService:
             )
 
         tables = await self.restaurant_repo.get_tables(restaurant_id)
-        candidate_tables = [
-            t for t in tables if t.min_capacity <= party_size <= t.max_capacity
-        ]
+        candidate_tables = [t for t in tables if t.min_capacity <= party_size <= t.max_capacity]
         # Sort candidate tables so we pick the best fit (smallest suitable table first)
         candidate_tables.sort(key=lambda t: t.max_capacity)
 

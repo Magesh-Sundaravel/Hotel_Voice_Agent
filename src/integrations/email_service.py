@@ -82,7 +82,9 @@ class EmailService:
 
         price_str = f"€{total_price}" if total_price else "Tariffa confermata alla reception"
         room_str = f"Camera {room_number}" if room_number else "Assegnata al check-in"
-        notes_str = f"<p><strong>Note speciali:</strong> {special_requests}</p>" if special_requests else ""
+        notes_str = (
+            f"<p><strong>Note speciali:</strong> {special_requests}</p>" if special_requests else ""
+        )
 
         html_content = f"""
 <!DOCTYPE html>
@@ -114,7 +116,7 @@ class EmailService:
     <div class="content">
       <p>Gentile <strong>{guest_name}</strong>,</p>
       <p>È un vero piacere confermarLe la prenotazione del Suo soggiorno presso il nostro hotel in Piazza Barberini.</p>
-      
+
       <div class="booking-card">
         <table>
           <tr><td class="label">Codice Prenotazione:</td><td class="val">{reference_code}</td></tr>
@@ -131,7 +133,7 @@ class EmailService:
 
       <p><strong>Informazioni per il Suo arrivo:</strong></p>
       <p>Il nostro Concierge e la Reception sono a Sua completa disposizione 24 ore su 24 per organizzare transfer privati, prenotazioni presso il Rooftop Restaurant <em>The Flair</em> o trattamenti rilassanti presso la <em>Sina Spa</em>.</p>
-      
+
       <p>A presto a Roma,<br><em>La Direzione & Concierge, Sina Bernini Bristol</em></p>
     </div>
     <div class="footer">

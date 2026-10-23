@@ -17,9 +17,7 @@ class RestaurantService:
             f"- {s.name_it.capitalize()}: dalle {s.start_time} alle {s.end_time} (ultimo ingresso alle {s.last_seating_time})"
             for s in settings.shifts
         ]
-        return f"Gli orari di apertura di {settings.name} sono:\n" + "\n".join(
-            shift_lines
-        )
+        return f"Gli orari di apertura di {settings.name} sono:\n" + "\n".join(shift_lines)
 
     async def answer_faq(self, restaurant_id: str, query: str) -> str | None:
         faqs = await self.restaurant_repo.get_faqs(restaurant_id)

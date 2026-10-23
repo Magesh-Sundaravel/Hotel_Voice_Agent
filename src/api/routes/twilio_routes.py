@@ -58,7 +58,9 @@ async def twilio_audio_stream(websocket: WebSocket):
         agent = VoiceAgent(
             hotel_id="sina_bernini_bristol",
             hotel_name=settings.DEFAULT_HOTEL_NAME,
-            hotel_booking_service=getattr(getattr(websocket.app, "state", None), "hotel_booking_service", None),
+            hotel_booking_service=getattr(
+                getattr(websocket.app, "state", None), "hotel_booking_service", None
+            ),
             guest_crm_service=getattr(getattr(websocket.app, "state", None), "crm_service", None),
         )
 
@@ -92,10 +94,10 @@ async def trigger_outbound_call(payload: OutboundCallRequest):
         )
         return {"status": "initiated", "call_sid": call_sid, "to": payload.to_phone}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except (RuntimeError, OSError) as e:
         logger.error("Outbound call error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/status", dependencies=[Depends(verify_twilio_signature)])
@@ -105,5 +107,7 @@ async def handle_call_status(request: Request):
     call_sid = form_data.get("CallSid")
     call_status = form_data.get("CallStatus")
     duration = form_data.get("CallDuration")
-    logger.info("Twilio Call status: sid=%s, status=%s, duration=%s", call_sid, call_status, duration)
+    logger.info(
+        "Twilio Call status: sid=%s, status=%s, duration=%s", call_sid, call_status, duration
+    )
     return {"status": "received"}

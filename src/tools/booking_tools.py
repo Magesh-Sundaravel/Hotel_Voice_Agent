@@ -1,6 +1,5 @@
 from datetime import date
 
-from src.tools.base import BaseTool
 from pydantic import BaseModel, Field
 
 from src.models import (
@@ -12,12 +11,11 @@ from src.services.availability_service import AvailabilityService
 from src.services.booking_service import BookingService
 from src.services.notification_service import NotificationService
 from src.services.restaurant_service import RestaurantService
+from src.tools.base import BaseTool
 
 
 class CheckAvailabilityInput(BaseModel):
-    booking_date: str = Field(
-        description="Data richiesta in formato YYYY-MM-DD (es. '2026-10-23')"
-    )
+    booking_date: str = Field(description="Data richiesta in formato YYYY-MM-DD (es. '2026-10-23')")
     booking_time: str = Field(
         description="Orario richiesto in formato HH:MM (es. '20:00' o '13:30')"
     )
@@ -28,12 +26,8 @@ class CreateReservationInput(BaseModel):
     customer_name: str = Field(description="Nome e cognome del cliente")
     customer_phone: str = Field(description="Numero di telefono del cliente")
     party_size: int = Field(description="Numero di persone")
-    booking_date: str = Field(
-        description="Data in formato YYYY-MM-DD (es. '2026-10-23')"
-    )
-    booking_time: str = Field(
-        description="Orario in formato HH:MM (es. '20:00' o '13:30')"
-    )
+    booking_date: str = Field(description="Data in formato YYYY-MM-DD (es. '2026-10-23')")
+    booking_time: str = Field(description="Orario in formato HH:MM (es. '20:00' o '13:30')")
     dietary_notes: str | None = Field(
         default=None,
         description="Eventuali allergie o intolleranze (es. 'celiachia', 'senza glutine', 'vegetariano')",
@@ -49,9 +43,7 @@ class ModifyReservationInput(BaseModel):
         default=None,
         description="Codice di prenotazione (es. 'BV-1234') se fornito dal cliente",
     )
-    customer_phone: str = Field(
-        description="Numero di telefono del cliente per verifica"
-    )
+    customer_phone: str = Field(description="Numero di telefono del cliente per verifica")
     customer_name: str | None = Field(
         default=None, description="Nome o cognome del cliente per verifica"
     )
@@ -74,15 +66,11 @@ class CancelReservationInput(BaseModel):
         default=None,
         description="Codice di prenotazione (es. 'BV-1234') se fornito dal cliente",
     )
-    customer_phone: str = Field(
-        description="Numero di telefono del cliente per verifica"
-    )
+    customer_phone: str = Field(description="Numero di telefono del cliente per verifica")
     customer_name: str | None = Field(
         default=None, description="Nome o cognome del cliente per verifica"
     )
-    reason: str | None = Field(
-        default=None, description="Motivo della cancellazione se comunicato"
-    )
+    reason: str | None = Field(default=None, description="Motivo della cancellazione se comunicato")
 
 
 class RestaurantFAQInput(BaseModel):
@@ -122,9 +110,7 @@ def build_tools(
         def _run(self, *args, **kwargs):
             raise NotImplementedError("Use async execution")
 
-        async def _arun(
-            self, booking_date: str, booking_time: str, party_size: int
-        ) -> str:
+        async def _arun(self, booking_date: str, booking_time: str, party_size: int) -> str:
             try:
                 parsed_date = date.fromisoformat(booking_date)
             except ValueError:
@@ -142,9 +128,7 @@ def build_tools(
                 )
             alt_text = ""
             if resp.alternatives:
-                alt_text = (
-                    f" Orari alternativi disponibili: {', '.join(resp.alternatives)}."
-                )
+                alt_text = f" Orari alternativi disponibili: {', '.join(resp.alternatives)}."
             return f"NON DISPONIBILE: {resp.reason}{alt_text}"
 
     class CreateReservationTool(BaseTool):
@@ -265,11 +249,7 @@ def build_tools(
 
         async def _arun(self, query: str) -> str:
             query_lower = query.lower()
-            if (
-                "orari" in query_lower
-                or "apert" in query_lower
-                or "chius" in query_lower
-            ):
+            if "orari" in query_lower or "apert" in query_lower or "chius" in query_lower:
                 return await restaurant_service.get_opening_hours_text(restaurant_id)
             ans = await restaurant_service.answer_faq(restaurant_id, query)
             if ans:
@@ -288,9 +268,7 @@ def build_tools(
         def _run(self, *args, **kwargs):
             raise NotImplementedError("Use async execution")
 
-        async def _arun(
-            self, caller_name: str, caller_phone: str, message_body: str
-        ) -> str:
+        async def _arun(self, caller_name: str, caller_phone: str, message_body: str) -> str:
             await notification_service.notify_owner_message(
                 restaurant_id=restaurant_id,
                 caller_name=caller_name,

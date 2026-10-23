@@ -1,10 +1,11 @@
+import contextlib
 import json
 
-from src.tools.base import BaseTool
 from pydantic import BaseModel, Field
 
 from src.models import ConciergeCategory
 from src.services.guest_crm_service import GuestCRMService
+from src.tools.base import BaseTool
 
 
 class LookupCallerInput(BaseModel):
@@ -41,6 +42,7 @@ class LookupCallerCRMTool(BaseTool):
         return json.dumps(
             {
                 "is_known_guest": True,
+                "title": guest.title,
                 "first_name": guest.first_name,
                 "last_name": guest.last_name,
                 "vip_tier": guest.vip_tier.value,
@@ -65,6 +67,10 @@ class LookupCallerCRMTool(BaseTool):
 
 class RecordGuestPreferenceInput(BaseModel):
     phone_number: str = Field(description="Numero di telefono dell'ospite")
+    title: str | None = Field(
+        default=None,
+        description="Titolo di cortesia o genere grammaticale dell'ospite ('Signor', 'Signora', o None)",
+    )
     dietary_restriction: str | None = Field(
         default=None,
         description="Allergie o intolleranze alimentari (es. 'celiachia', 'senza glutine', 'vegetariano')",
@@ -95,6 +101,7 @@ class RecordGuestPreferenceTool(BaseTool):
     async def _arun(
         self,
         phone_number: str,
+        title: str | None = None,
         dietary_restriction: str | None = None,
         room_preference: str | None = None,
         favorite_drink: str | None = None,
@@ -102,6 +109,7 @@ class RecordGuestPreferenceTool(BaseTool):
     ) -> str:
         guest = await self.crm_service.save_guest_preference(
             phone=phone_number,
+            title=title,
             dietary_restriction=dietary_restriction,
             room_preference=room_preference,
             favorite_drink=favorite_drink,
@@ -205,10 +213,8 @@ class GetCityRecommendationsTool(BaseTool):
     ) -> str:
         cat_enum = None
         if category:
-            try:
+            with contextlib.suppress(ValueError):
                 cat_enum = ConciergeCategory(category.lower())
-            except ValueError:
-                pass
 
         recs = await self.crm_service.get_personalized_recommendations(
             phone=phone_number,

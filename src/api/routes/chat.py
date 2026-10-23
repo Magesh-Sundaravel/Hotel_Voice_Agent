@@ -23,9 +23,7 @@ chat_session_store = SessionStore(ttl_seconds=3600.0)
 
 
 class ChatRequest(BaseModel):
-    session_id: str = Field(
-        description="Unique session ID per phone call or chat session"
-    )
+    session_id: str = Field(description="Unique session ID per phone call or chat session")
     message: str = Field(description="Caller input text in Italian")
     caller_phone: str | None = "+39 333 0000000"
     caller_name: str | None = None
@@ -57,12 +55,22 @@ def _get_agent(request: Request, req: ChatRequest) -> VoiceAgent:
             agent = VoiceAgent(
                 hotel_id=req.hotel_id,
                 hotel_name=req.hotel_name,
-                hotel_booking_service=getattr(getattr(request.app, "state", None), "hotel_booking_service", None),
+                hotel_booking_service=getattr(
+                    getattr(request.app, "state", None), "hotel_booking_service", None
+                ),
                 guest_crm_service=getattr(getattr(request.app, "state", None), "crm_service", None),
-                availability_service=getattr(getattr(request.app, "state", None), "availability_service", None),
-                booking_service=getattr(getattr(request.app, "state", None), "booking_service", None),
-                restaurant_service=getattr(getattr(request.app, "state", None), "restaurant_service", None),
-                notification_service=getattr(getattr(request.app, "state", None), "notification_service", None),
+                availability_service=getattr(
+                    getattr(request.app, "state", None), "availability_service", None
+                ),
+                booking_service=getattr(
+                    getattr(request.app, "state", None), "booking_service", None
+                ),
+                restaurant_service=getattr(
+                    getattr(request.app, "state", None), "restaurant_service", None
+                ),
+                notification_service=getattr(
+                    getattr(request.app, "state", None), "notification_service", None
+                ),
                 email_service=getattr(getattr(request.app, "state", None), "email_service", None),
                 twilio_service=getattr(getattr(request.app, "state", None), "twilio_service", None),
             )

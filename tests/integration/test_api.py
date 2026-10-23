@@ -8,7 +8,11 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app
 from src.models import BookingStatus, CreateReservationRequest
-from src.repositories import get_booking_repository, get_notification_repository, get_restaurant_repository
+from src.repositories import (
+    get_booking_repository,
+    get_notification_repository,
+    get_restaurant_repository,
+)
 from src.services import AvailabilityService, BookingService, NotificationService
 from src.voice.agent import VoiceAgent
 
@@ -75,9 +79,7 @@ async def test_reservations_and_notifications_endpoints(client):
     assert res.success is True
 
     # Test GET /api/reservations
-    resp = client.get(
-        "/api/reservations", params={"booking_date": target_date.isoformat()}
-    )
+    resp = client.get("/api/reservations", params={"booking_date": target_date.isoformat()})
     assert resp.status_code == 200
     reservations = resp.json()
     assert len(reservations) >= 1

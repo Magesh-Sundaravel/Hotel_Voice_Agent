@@ -88,7 +88,15 @@ def get_default_seed_restaurant(
                     category="allergie",
                     question_it="Avete piatti senza glutine o per allergie?",
                     answer_it="Proponiamo alternative senza glutine e per vegetariani. Raccomandiamo sempre di segnalare eventuali allergie specifiche all'arrivo per consentire allo chef di procedere con la massima sicurezza.",
-                    keywords=["celiachia", "senza glutine", "glutine", "allergia", "allergie", "vegetariano", "vegano"],
+                    keywords=[
+                        "celiachia",
+                        "senza glutine",
+                        "glutine",
+                        "allergia",
+                        "allergie",
+                        "vegetariano",
+                        "vegano",
+                    ],
                 ),
                 FAQItem(
                     id="faq_location",
@@ -166,7 +174,13 @@ def get_default_seed_restaurant(
                 category="indirizzo",
                 question_it="Dove vi trovate?",
                 answer_it="Sina Bernini Bristol si trova in Piazza Barberini 23, 00187 Roma, proprio di fronte alla Fontana del Tritone e all'inizio di Via Veneto.",
-                keywords=["dove siete", "indirizzo", "posizione", "come arrivare", "piazza barberini"],
+                keywords=[
+                    "dove siete",
+                    "indirizzo",
+                    "posizione",
+                    "come arrivare",
+                    "piazza barberini",
+                ],
             ),
         ],
     )
@@ -230,9 +244,7 @@ class InMemoryRestaurantRepository(BaseRestaurantRepository):
         return None
 
     async def get_tables(self, restaurant_id: str) -> list[Table]:
-        return [
-            t for t in self.tables if t.restaurant_id == restaurant_id and t.is_active
-        ]
+        return [t for t in self.tables if t.restaurant_id == restaurant_id and t.is_active]
 
     async def get_faqs(self, restaurant_id: str) -> list[FAQItem]:
         if restaurant_id == self.restaurant.id:
@@ -322,8 +334,7 @@ class InMemoryGuestCRMRepository(BaseGuestCRMRepository):
     def __init__(self):
         # Seed with sample data
         self._properties: dict[str, HotelProperty] = {
-            p_id: prop.model_copy(deep=True)
-            for p_id, prop in SAMPLE_PROPERTIES.items()
+            p_id: prop.model_copy(deep=True) for p_id, prop in SAMPLE_PROPERTIES.items()
         }
         self._guests: dict[str, GuestProfile] = {
             guest.id: guest.model_copy(deep=True) for guest in SAMPLE_GUESTS.values()
@@ -374,9 +385,7 @@ class InMemoryGuestCRMRepository(BaseGuestCRMRepository):
         prop = self._properties.get(hotel_id)
         return prop.model_copy(deep=True) if prop else None
 
-    async def add_concierge_request(
-        self, request: ConciergeRequest
-    ) -> ConciergeRequest:
+    async def add_concierge_request(self, request: ConciergeRequest) -> ConciergeRequest:
         self._concierge_requests.insert(0, request.model_copy(deep=True))
         return request
 

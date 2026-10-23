@@ -10,12 +10,9 @@ from src.models import (
     GuestFeedback,
     GuestPreferences,
     GuestProfile,
-    HotelProperty,
-    HotelStay,
     NotificationType,
     StayStage,
     TravelPersona,
-    VIPTier,
 )
 from src.repositories.base import BaseGuestCRMRepository, BaseNotificationRepository
 
@@ -40,8 +37,7 @@ class GuestCRMService:
 
         if not guest:
             greeting = (
-                f"{hotel_name}, Concierge al Suo servizio, buongiorno! "
-                "Come posso assisterLa oggi?"
+                f"{hotel_name}, Concierge al Suo servizio, buongiorno! Come posso assisterLa oggi?"
             )
             return CallerCRMContext(
                 is_known_guest=False,
@@ -56,31 +52,27 @@ class GuestCRMService:
         stage = stay.stage if stay else StayStage.NON_RESIDENT
 
         # Construct contextual greeting
-        title_it = "Signor" if guest.first_name in ["Marco", "Andrea", "Luca"] else "Signora"
-        last_name = guest.last_name
+        salutation = f"{guest.title} {guest.last_name}" if guest.title else guest.first_name
 
         if stage == StayStage.IN_HOUSE and stay and stay.room_number:
             greeting = (
-                f"Buongiorno {title_it} {last_name}! Che piacere risentirla. "
+                f"Buongiorno {salutation}! Che piacere risentirla. "
                 f"Come procede il Suo soggiorno in camera {stay.room_number}? "
                 "Come posso esserLe utile oggi?"
             )
         elif stage == StayStage.PRE_STAY and stay:
             greeting = (
-                f"Buongiorno {title_it} {last_name}! Che piacere sentirla. "
+                f"Buongiorno {salutation}! Che piacere sentirla. "
                 f"In merito al Suo prossimo soggiorno presso il nostro {hotel_name}, "
                 "come posso assisterLa?"
             )
         elif stage == StayStage.POST_STAY:
             greeting = (
-                f"Buongiorno {title_it} {last_name}! È sempre un grande piacere risentirla. "
+                f"Buongiorno {salutation}! È sempre un grande piacere risentirla. "
                 "Come posso aiutarLa oggi?"
             )
         else:
-            greeting = (
-                f"Buongiorno {title_it} {last_name}! Bentornato a Sina Hotels. "
-                "Come posso assisterLa?"
-            )
+            greeting = f"Buongiorno {salutation}! Bentornato a Sina Hotels. Come posso assisterLa?"
 
         return CallerCRMContext(
             is_known_guest=True,
@@ -94,6 +86,7 @@ class GuestCRMService:
     async def save_guest_preference(
         self,
         phone: str,
+        title: str | None = None,
         dietary_restriction: str | None = None,
         room_preference: str | None = None,
         favorite_drink: str | None = None,
@@ -106,12 +99,18 @@ class GuestCRMService:
             guest = GuestProfile(
                 id=f"guest_{uuid.uuid4().hex[:8]}",
                 phone_number=phone,
+                title=title,
                 first_name="Ospite",
                 last_name="Registrato",
                 preferences=GuestPreferences(),
             )
+        elif title:
+            guest.title = title
 
-        if dietary_restriction and dietary_restriction not in guest.preferences.dietary_restrictions:
+        if (
+            dietary_restriction
+            and dietary_restriction not in guest.preferences.dietary_restrictions
+        ):
             guest.preferences.dietary_restrictions.append(dietary_restriction)
             # Create notification for staff
             notif = CRMNotification(

@@ -125,4 +125,3 @@ class TwilioService:
         )
         logger.info("Twilio outbound call initiated to %s: SID=%s", to_phone, call.sid)
         return call.sid
-

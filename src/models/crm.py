@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,7 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class TravelPersona(str, Enum):
+class TravelPersona(StrEnum):
     ROMANTIC_COUPLE = "romantic_couple"
     BUSINESS_SOLO = "business_solo"
     FAMILY_LEISURE = "family_leisure"
@@ -17,21 +17,21 @@ class TravelPersona(str, Enum):
     GENERAL_LEISURE = "general_leisure"
 
 
-class StayStage(str, Enum):
+class StayStage(StrEnum):
     PRE_STAY = "pre_stay"
     IN_HOUSE = "in_house"
     POST_STAY = "post_stay"
     NON_RESIDENT = "non_resident"
 
 
-class VIPTier(str, Enum):
+class VIPTier(StrEnum):
     STANDARD = "standard"
     SILVER = "silver"
     GOLD = "gold"
     SINA_PRIVILEGE_VIP = "sina_privilege_vip"
 
 
-class ConciergeCategory(str, Enum):
+class ConciergeCategory(StrEnum):
     DINING = "dining"
     SPA_WELLNESS = "spa_wellness"
     TRANSPORT = "transport"
@@ -64,6 +64,10 @@ class GuestProfile(BaseModel):
     id: str
     phone_number: str = Field(description="E.164 or normalized phone number")
     email: str | None = None
+    title: str | None = Field(
+        default=None,
+        description="Honorific title: 'Signor', 'Signora', or None",
+    )
     first_name: str
     last_name: str
     preferred_language: str = "it"

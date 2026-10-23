@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app
@@ -10,7 +9,9 @@ from src.config import Settings
 
 
 def test_cors_origins_list_parsing():
-    s = Settings(CORS_ORIGINS="http://localhost:3000, https://admin.sinahotels.com , https://sinabernini.it")
+    s = Settings(
+        CORS_ORIGINS="http://localhost:3000, https://admin.sinahotels.com , https://sinabernini.it"
+    )
     assert s.cors_origins_list == [
         "http://localhost:3000",
         "https://admin.sinahotels.com",
