@@ -1,7 +1,7 @@
 import json
 from datetime import date
 
-from langchain_core.tools import BaseTool
+from src.tools.base import BaseTool
 from pydantic import BaseModel, Field
 
 from src.models.hotel_booking import (
