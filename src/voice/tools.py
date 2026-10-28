@@ -265,6 +265,10 @@ HOTEL_TOOL_SCHEMAS: list[dict[str, Any]] = [
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Titolo di cortesia dell'ospite ('Signor', 'Signora', o None)",
+                    },
                     "dietary_restriction": {
                         "type": "string",
                         "description": "Allergie o intolleranze alimentari (es. 'celiachia', 'senza glutine', 'vegetariano')",
@@ -840,8 +844,16 @@ async def execute_tool_call(
         cat_raw = args.get("category")
         cat_enum = None
         if cat_raw:
-            with contextlib.suppress(ValueError):
+            try:
                 cat_enum = RoomCategory(str(cat_raw).strip().lower())
+            except ValueError:
+                return json.dumps(
+                    {
+                        "is_available": False,
+                        "message_it": f"Categoria camera '{cat_raw}' non valida. Le categorie disponibili sono: superior, deluxe, junior_suite, panoramic_suite.",
+                    },
+                    ensure_ascii=False,
+                )
 
         guests_count = int(args.get("guests_count", 2))
         res = await hotel_booking_service.check_availability(
@@ -894,7 +906,13 @@ async def execute_tool_call(
         try:
             cat_enum = RoomCategory(cat_raw)
         except ValueError:
-            cat_enum = RoomCategory.SUPERIOR
+            return json.dumps(
+                {
+                    "success": False,
+                    "message_it": f"Categoria camera '{cat_raw}' non valida. Le categorie disponibili sono: superior, deluxe, junior_suite, panoramic_suite.",
+                },
+                ensure_ascii=False,
+            )
 
         # Deterministic caller identity injection:
         # LLM cannot choose the guest phone; code injects session.caller_phone
@@ -951,12 +969,35 @@ async def execute_tool_call(
                 if not valid:
                     return json.dumps({"success": False, "message_it": err}, ensure_ascii=False)
             elif new_in_raw:
-                d_in = date.fromisoformat(str(new_in_raw).strip())
+                try:
+                    d_in = date.fromisoformat(str(new_in_raw).strip())
+                except ValueError:
+                    return json.dumps(
+                        {"success": False, "message_it": "Formato data non valido. Usare il formato YYYY-MM-DD (ad es. 2026-10-25)."},
+                        ensure_ascii=False,
+                    )
             elif new_out_raw:
-                d_out = date.fromisoformat(str(new_out_raw).strip())
+                try:
+                    d_out = date.fromisoformat(str(new_out_raw).strip())
+                except ValueError:
+                    return json.dumps(
+                        {"success": False, "message_it": "Formato data non valido. Usare il formato YYYY-MM-DD (ad es. 2026-10-25)."},
+                        ensure_ascii=False,
+                    )
 
         cat_raw = args.get("new_category")
-        cat_enum = RoomCategory(str(cat_raw).strip().lower()) if cat_raw else None
+        cat_enum = None
+        if cat_raw:
+            try:
+                cat_enum = RoomCategory(str(cat_raw).strip().lower())
+            except ValueError:
+                return json.dumps(
+                    {
+                        "success": False,
+                        "message_it": f"Categoria camera '{cat_raw}' non valida. Le categorie disponibili sono: superior, deluxe, junior_suite, panoramic_suite.",
+                    },
+                    ensure_ascii=False,
+                )
 
         # Guardrail & Identity injection: Verify against session.caller_phone
         caller_phone = args.get("guest_phone") or session.caller_phone
@@ -1043,6 +1084,7 @@ async def execute_tool_call(
         return json.dumps(
             {
                 "is_known_guest": True,
+                "title": guest.title,
                 "first_name": guest.first_name,
                 "last_name": guest.last_name,
                 "vip_tier": guest.vip_tier.value,
@@ -1069,6 +1111,7 @@ async def execute_tool_call(
         caller_phone = args.get("phone_number") or session.caller_phone
         guest = await guest_crm_service.save_guest_preference(
             phone=str(caller_phone).strip(),
+            title=args.get("title"),
             dietary_restriction=args.get("dietary_restriction"),
             room_preference=args.get("room_preference"),
             favorite_drink=args.get("favorite_drink"),

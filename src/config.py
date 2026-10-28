@@ -16,8 +16,6 @@ class Settings(BaseSettings):
     # Supabase settings
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
-    DATABASE_URL: str = ""
-    SUPABASE_DB_URL: str = ""
 
     # Hotel defaults (Sina Bernini Bristol, Roma)
     DEFAULT_HOTEL_NAME: str = "Sina Bernini Bristol"

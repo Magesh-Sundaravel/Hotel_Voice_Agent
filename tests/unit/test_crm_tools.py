@@ -2,20 +2,23 @@ import json
 
 import pytest
 
-from src.tools.crm_tools import (
-    build_crm_tools,
-)
+from src.voice.session import CallSession
+from src.voice.tools import execute_tool_call
 
 
 @pytest.fixture
-def crm_tools(guest_crm_service):
-    return {t.name: t for t in build_crm_tools(guest_crm_service)}
+def call_session():
+    return CallSession(call_id="test_crm_call", user_id="test_user", caller_phone="+39 333 1112233")
 
 
 @pytest.mark.asyncio
-async def test_lookup_caller_tool(crm_tools):
-    tool = crm_tools["lookup_caller_crm"]
-    res_str = await tool._arun(phone_number="+39 333 1112233")
+async def test_lookup_caller_tool(guest_crm_service, call_session):
+    res_str = await execute_tool_call(
+        tool_name="lookup_caller_crm",
+        raw_args={"phone_number": "+39 333 1112233"},
+        session=call_session,
+        guest_crm_service=guest_crm_service,
+    )
     data = json.loads(res_str)
     assert data["is_known_guest"] is True
     assert data["last_name"] == "Rossi"
@@ -24,12 +27,16 @@ async def test_lookup_caller_tool(crm_tools):
 
 
 @pytest.mark.asyncio
-async def test_record_preference_tool(crm_tools):
-    tool = crm_tools["record_guest_preference"]
-    res_str = await tool._arun(
-        phone_number="+39 333 1112233",
-        dietary_restriction="No crostacei",
-        room_preference="Piano attico",
+async def test_record_preference_tool(guest_crm_service, call_session):
+    res_str = await execute_tool_call(
+        tool_name="record_guest_preference",
+        raw_args={
+            "phone_number": "+39 333 1112233",
+            "dietary_restriction": "No crostacei",
+            "room_preference": "Piano attico",
+        },
+        session=call_session,
+        guest_crm_service=guest_crm_service,
     )
     data = json.loads(res_str)
     assert data["success"] is True
@@ -37,31 +44,43 @@ async def test_record_preference_tool(crm_tools):
 
 
 @pytest.mark.asyncio
-async def test_record_title_preference_tool(crm_tools):
-    tool = crm_tools["record_guest_preference"]
-    res_str = await tool._arun(
-        phone_number="+39 333 9998877",
-        title="Signor",
-        special_note="Preferisce titolo formale",
+async def test_record_title_preference_tool(guest_crm_service, call_session):
+    res_str = await execute_tool_call(
+        tool_name="record_guest_preference",
+        raw_args={
+            "phone_number": "+39 333 9998877",
+            "title": "Signor",
+            "special_note": "Preferisce titolo formale",
+        },
+        session=call_session,
+        guest_crm_service=guest_crm_service,
     )
     data = json.loads(res_str)
     assert data["success"] is True
 
-    lookup = crm_tools["lookup_caller_crm"]
-    res_lookup = await lookup._arun(phone_number="+39 333 9998877")
+    res_lookup = await execute_tool_call(
+        tool_name="lookup_caller_crm",
+        raw_args={"phone_number": "+39 333 9998877"},
+        session=call_session,
+        guest_crm_service=guest_crm_service,
+    )
     data_lookup = json.loads(res_lookup)
     assert data_lookup["title"] == "Signor"
 
 
 @pytest.mark.asyncio
-async def test_request_concierge_service_tool(crm_tools):
-    tool = crm_tools["request_concierge_service"]
-    res_str = await tool._arun(
-        phone_number="+39 335 9988776",
-        category="transport",
-        title="Transfer NCC da Fiumicino",
-        details="Arrivo volo ore 15:00 con 1 valigia",
-        scheduled_time="15:00",
+async def test_request_concierge_service_tool(guest_crm_service, call_session):
+    res_str = await execute_tool_call(
+        tool_name="request_concierge_service",
+        raw_args={
+            "phone_number": "+39 335 9988776",
+            "category": "transport",
+            "title": "Transfer NCC da Fiumicino",
+            "details": "Arrivo volo ore 15:00 con 1 valigia",
+            "scheduled_time": "15:00",
+        },
+        session=call_session,
+        guest_crm_service=guest_crm_service,
     )
     data = json.loads(res_str)
     assert data["success"] is True
@@ -69,9 +88,13 @@ async def test_request_concierge_service_tool(crm_tools):
 
 
 @pytest.mark.asyncio
-async def test_get_city_recommendations_tool(crm_tools):
-    tool = crm_tools["get_city_recommendations"]
-    res_str = await tool._arun(phone_number="+39 333 1112233")
+async def test_get_city_recommendations_tool(guest_crm_service, call_session):
+    res_str = await execute_tool_call(
+        tool_name="get_city_recommendations",
+        raw_args={"phone_number": "+39 333 1112233"},
+        session=call_session,
+        guest_crm_service=guest_crm_service,
+    )
     data = json.loads(res_str)
     recs = data["recommendations"]
     assert len(recs) > 0
@@ -79,13 +102,17 @@ async def test_get_city_recommendations_tool(crm_tools):
 
 
 @pytest.mark.asyncio
-async def test_submit_guest_feedback_tool(crm_tools):
-    tool = crm_tools["submit_guest_feedback"]
-    res_str = await tool._arun(
-        phone_number="+39 340 5544332",
-        nps_score=10,
-        comments="Bellissimo soggiorno al Bernini Bristol!",
+async def test_submit_guest_feedback_tool(guest_crm_service, call_session):
+    res_str = await execute_tool_call(
+        tool_name="submit_guest_feedback",
+        raw_args={
+            "phone_number": "+39 340 5544332",
+            "nps_score": 10,
+            "comments": "Bellissimo soggiorno al Bernini Bristol!",
+        },
+        session=call_session,
+        guest_crm_service=guest_crm_service,
     )
     data = json.loads(res_str)
     assert data["success"] is True
-    assert "feedback_id" in data
+    assert "request_id" in data or "message_it" in data

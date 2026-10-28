@@ -51,7 +51,7 @@ Build an Italian-first AI receptionist and luxury hotel concierge for Sina Hotel
 ## Architecture & Layers
 - **Voice layer (`src/voice/`):** Twilio media streams WebSocket, WebRTC Voice Activity Detection (VAD) with RMS pre-filter, Groq Whisper STT, ElevenLabs TTS, and real-time barge-in interruption handling.
 - **Agent layer (`src/voice/agent.py`, `src/agent/`):** Fast async single-loop LLM agent with native tool-calling, dynamic Italian system prompts, context management, and session store.
-- **Tools layer (`src/voice/tools.py`, `src/tools/`):** OpenAI/Groq function calling schemas with code-level guardrails, date validation, and deterministic caller phone injection.
+- **Tools layer (`src/voice/tools.py`):** OpenAI/Groq function calling schemas with code-level guardrails, date validation, and deterministic caller phone injection.
 - **Services layer (`src/services/`):** Pure deterministic business rules (`HotelBookingService`, `GuestCRMService`, `BookingService`, `AvailabilityService`, `RestaurantService`, `NotificationService`).
 - **Integrations layer (`src/integrations/`):** Twilio SMS/telephony and SMTP email delivery with luxury Italian templates.
 - **Repositories & Storage (`src/repositories/`):** Abstract repository interfaces with dual implementations: Supabase PostgreSQL tables and fast in-memory stores for testing.
